@@ -1502,7 +1502,7 @@ function ChatPage({ hiredIds }) {
   );
 }
 
-function Sidebar({ page, setPage }) {
+function Sidebar({ page, setPage, search, setSearch }) {
   const mono = "'DM Mono', monospace";
   const NAV = [
     { id:"studio", label:"Studio", icon:<><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></>, sub:[] },
@@ -1530,7 +1530,7 @@ function Sidebar({ page, setPage }) {
       <div style={{ padding:"12px 14px", borderBottom:`1px solid ${T.line}` }}>
         <div style={{ position:"relative" }}>
           <svg style={{ position:"absolute", left:9, top:"50%", transform:"translateY(-50%)" }} width="11" height="11" viewBox="0 0 24 24" fill="none" stroke={T.ghost} strokeWidth="2" strokeLinecap="round"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
-          <input style={{ ...inputSt, paddingLeft:28, fontSize:11, background:T.surface }} placeholder="Search..." />
+          <input value={search||""} onChange={e=>setSearch?.(e.target.value)} style={{ ...inputSt, paddingLeft:28, fontSize:11, background:T.surface }} placeholder="Search..." />
         </div>
       </div>
 
@@ -1575,7 +1575,9 @@ function Sidebar({ page, setPage }) {
   );
 }
 
-function ClientsPage({ onSelect }) {
+function ClientsPage({ onSelect, search = "" }) {
+  const q = search.toLowerCase().trim();
+  const clients = q ? CLIENTS_DATA.filter(c => c.name.toLowerCase().includes(q) || c.niche.toLowerCase().includes(q) || c.status.toLowerCase().includes(q)) : CLIENTS_DATA;
   return (
     <div style={{ flex:1, overflowY:"auto", background:T.base, padding:"36px 40px" }}>
       {/* Header */}
@@ -1614,7 +1616,7 @@ function ClientsPage({ onSelect }) {
       <div className="fade-up fade-up-2">
         <div style={{ fontSize:9, fontWeight:700, letterSpacing:"0.18em", color:T.dim, fontFamily:"'DM Mono', monospace", marginBottom:14 }}>ALL CLIENTS</div>
         <div style={{ display:"flex",flexDirection:"column", gap:10 }}>
-          {CLIENTS_DATA.map((c) => {
+          {clients.map((c) => {
             const TABS = [
               { id:"strategy",   label:"Strategy",   icon:<><path d="M12 2L2 7l10 5 10-5-10-5"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></> },
               { id:"content",    label:"Content",    icon:<><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></> },
@@ -3935,16 +3937,112 @@ function TemplatesManager() {
   const filtered = filter==="All" ? templates : templates.filter(t=>t.pillar===filter);
   const pc = { AUTHORITY:T.auth, CONVERSION:T.conv, REACH:T.reach };
 
+  const [editVals, setEditVals] = useState({});
+  const [previewMode, setPreviewMode] = useState(false);
+
+  const startEdit = (id) => {
+    const tmpl = templates.find(t => t.id === id);
+    const initial = {};
+    (tmpl?.fields || []).forEach(f => { initial[f.id] = ""; });
+    setEditVals(initial);
+    setPreviewMode(false);
+    setEditId(id);
+  };
+
   if (editId) {
     const tmpl = templates.find(t=>t.id===editId);
+    const pc = { AUTHORITY:T.auth, CONVERSION:T.conv, REACH:T.reach };
+    const color = pc[tmpl?.pillar]||T.gold;
     return (
       <div style={{ flex:1, display:"flex", flexDirection:"column", overflow:"hidden" }}>
         <div style={{ padding:"14px 24px", borderBottom:`1px solid ${T.line}`, background:T.surface, display:"flex", alignItems:"center", gap:12, flexShrink:0 }}>
           <button onClick={()=>setEditId(null)} style={{ background:"none", border:"none", color:T.dim, cursor:"pointer", fontSize:13, fontFamily:sans }}>← Templates</button>
           <span style={{ fontSize:15, fontWeight:700, color:T.ink, fontFamily:sans, flex:1 }}>{tmpl?.name || "Template"}</span>
+          <span style={{ fontSize:9, fontWeight:700, color, background:color+"18", border:`1px solid ${color}33`, borderRadius:2, padding:"2px 7px", fontFamily:mono, letterSpacing:"0.1em" }}>{tmpl?.pillar}</span>
+          <span style={{ fontSize:10, color:T.ghost, fontFamily:mono }}>{tmpl?.duration}</span>
+          <button onClick={()=>setPreviewMode(!previewMode)}
+            style={{ fontSize:11, fontWeight:600, color:previewMode?T.gold:T.dim, background:previewMode?T.goldBg:"transparent", border:`1px solid ${previewMode?T.goldLine:T.line}`, borderRadius:5, padding:"5px 14px", cursor:"pointer", fontFamily:mono }}>
+            {previewMode ? "Edit" : "Preview"}
+          </button>
         </div>
-        <div style={{ flex:1, overflowY:"auto", padding:"24px", color:T.dim, fontFamily:sans, fontSize:13 }}>
-          Template editor — coming soon.
+        <div style={{ flex:1, display:"flex", overflow:"hidden" }}>
+          <div style={{ flex:1, overflowY:"auto", padding:"24px" }}>
+            {!previewMode ? (
+              <div style={{ maxWidth:640 }}>
+                <div style={{ fontSize:12, color:T.dim, fontFamily:sans, lineHeight:1.6, marginBottom:20, padding:"14px 16px", background:T.lift, border:`1px solid ${T.line}`, borderRadius:8 }}>{tmpl?.desc}</div>
+                {(tmpl?.fields||[]).map(field => (
+                  <div key={field.id} style={{ marginBottom:18 }}>
+                    <div style={{ fontSize:10, fontWeight:700, letterSpacing:"0.1em", color:T.dim, fontFamily:mono, marginBottom:6 }}>{field.label.toUpperCase()}</div>
+                    {field.type === "textarea" ? (
+                      <textarea
+                        value={editVals[field.id]||""}
+                        onChange={e => setEditVals(p=>({...p, [field.id]:e.target.value}))}
+                        placeholder={field.hint}
+                        rows={3}
+                        style={{ ...taSt, resize:"vertical" }}
+                      />
+                    ) : field.type === "pairs" ? (
+                      <div>
+                        {[0,1,2].map(i => (
+                          <div key={i} style={{ display:"flex", gap:8, marginBottom:6 }}>
+                            <input style={inputSt} placeholder={`Option A (Round ${i+1})`}
+                              value={editVals[field.id+"_a"+i]||""}
+                              onChange={e => setEditVals(p=>({...p, [field.id+"_a"+i]:e.target.value}))} />
+                            <span style={{ color:T.ghost, fontSize:12, alignSelf:"center", fontFamily:mono }}>vs</span>
+                            <input style={inputSt} placeholder={`Option B (Round ${i+1})`}
+                              value={editVals[field.id+"_b"+i]||""}
+                              onChange={e => setEditVals(p=>({...p, [field.id+"_b"+i]:e.target.value}))} />
+                          </div>
+                        ))}
+                      </div>
+                    ) : field.type === "list" ? (
+                      <textarea
+                        value={editVals[field.id]||""}
+                        onChange={e => setEditVals(p=>({...p, [field.id]:e.target.value}))}
+                        placeholder={field.hint + " (one per line)"}
+                        rows={4}
+                        style={{ ...taSt, resize:"vertical" }}
+                      />
+                    ) : (
+                      <input
+                        value={editVals[field.id]||""}
+                        onChange={e => setEditVals(p=>({...p, [field.id]:e.target.value}))}
+                        placeholder={field.hint}
+                        style={inputSt}
+                      />
+                    )}
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div style={{ maxWidth:420, margin:"0 auto" }}>
+                <div style={{ background:T.surface, border:`1px solid ${T.line}`, borderRadius:12, overflow:"hidden" }}>
+                  <div style={{ padding:"18px 20px", borderBottom:`1px solid ${T.line}` }}>
+                    <div style={{ display:"flex", justifyContent:"space-between", marginBottom:8 }}>
+                      <span style={{ fontSize:9, fontWeight:700, color, background:color+"18", border:`1px solid ${color}33`, borderRadius:2, padding:"2px 7px", fontFamily:mono, letterSpacing:"0.1em" }}>{tmpl?.pillar}</span>
+                      <span style={{ fontSize:9, color:T.ghost, fontFamily:mono }}>{tmpl?.duration}</span>
+                    </div>
+                    <div style={{ fontSize:16, fontWeight:800, color:T.ink, fontFamily:sans, marginBottom:4 }}>{tmpl?.name}</div>
+                  </div>
+                  <div style={{ padding:"18px 20px" }}>
+                    {(tmpl?.fields||[]).map(field => {
+                      const val = editVals[field.id];
+                      if (!val && field.type !== "pairs") return null;
+                      return (
+                        <div key={field.id} style={{ marginBottom:14 }}>
+                          <div style={{ fontSize:9, fontWeight:600, color:T.dim, fontFamily:mono, letterSpacing:"0.08em", marginBottom:4 }}>{field.label.toUpperCase()}</div>
+                          <div style={{ fontSize:13, color:T.ink, fontFamily:sans, lineHeight:1.6 }}>{val || "—"}</div>
+                        </div>
+                      );
+                    })}
+                    {Object.values(editVals).every(v => !v) && (
+                      <div style={{ textAlign:"center", padding:"20px 0", color:T.ghost, fontFamily:sans, fontSize:12 }}>Fill in the fields to see a preview.</div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       </div>
     );
@@ -3972,7 +4070,7 @@ function TemplatesManager() {
           {filtered.map(tmpl => {
             const color = pc[tmpl.pillar]||T.gold;
             return (
-              <div key={tmpl.id} onClick={()=>setEditId(tmpl.id)}
+              <div key={tmpl.id} onClick={()=>startEdit(tmpl.id)}
                 style={{ background:T.surface, border:`1px solid ${T.line}`, borderRadius:10, padding:"18px", cursor:"pointer" }}
                 onMouseEnter={e=>e.currentTarget.style.borderColor=color+"66"}
                 onMouseLeave={e=>e.currentTarget.style.borderColor=T.line}>
@@ -4139,10 +4237,19 @@ function ProductionTab({ scripts: rawScripts, setScripts: setRawScripts }) {
   );
 }
 
-function ClientViewTab({ client }) {
+function ClientViewTab({ client, scripts = [] }) {
   const mono = "'DM Mono', monospace";
   const sans = "'DM Sans', sans-serif";
   const [sub, setSub] = useState("overview");
+  const [feedback, setFeedback] = useState({});
+
+  const approved = scripts.filter(s => s.status === "APPROVED");
+  const review = scripts.filter(s => s.status === "REVIEW");
+  const totalScripts = scripts.length;
+  const sessions = [...new Set(scripts.map(s => s.session))];
+  const clientScripts = [...approved, ...review];
+
+  const pillColor = { AUTHORITY:"#7c3aed", CONVERSION:"#059669", REACH:"#0284c7" };
 
   return (
     <div style={{ flex:1, display:"flex", flexDirection:"column", overflow:"hidden" }}>
@@ -4160,30 +4267,174 @@ function ClientViewTab({ client }) {
         {sub==="overview" && (
           <div style={{ maxWidth:720, margin:"0 auto", padding:"40px 32px" }}>
             <div style={{ background:"#fff", borderRadius:14, padding:"28px 32px", marginBottom:20, boxShadow:"0 2px 12px #0000000a" }}>
-              <div style={{ fontSize:22, fontWeight:800, color:"#111", fontFamily:sans, marginBottom:6 }}>{client?.name}</div>
-              <div style={{ fontSize:13, color:"#666", fontFamily:sans }}>{client?.type==="team" ? "Team Workspace" : "Individual Workspace"}</div>
+              <div style={{ display:"flex", alignItems:"center", gap:16 }}>
+                <div style={{ width:52, height:52, borderRadius:12, background:client?.accent||"#c084fc", display:"flex", alignItems:"center", justifyContent:"center", fontSize:18, fontWeight:800, color:client?.color||"#fff", fontFamily:mono }}>{client?.initials}</div>
+                <div>
+                  <div style={{ fontSize:22, fontWeight:800, color:"#111", fontFamily:sans, marginBottom:4 }}>{client?.name}</div>
+                  <div style={{ display:"flex", gap:8, alignItems:"center" }}>
+                    <span style={{ fontSize:12, color:"#666", fontFamily:sans }}>{client?.niche}</span>
+                    <span style={{ fontSize:9, fontWeight:700, color:client?.status==="Active"?"#059669":"#9ca3af", background:client?.status==="Active"?"#dcfce7":"#f3f4f6", borderRadius:4, padding:"2px 8px", fontFamily:mono }}>{client?.status?.toUpperCase()}</span>
+                    <span style={{ fontSize:9, fontWeight:600, color:"#6b7280", background:"#f3f4f6", borderRadius:4, padding:"2px 8px", fontFamily:mono }}>{client?.type==="team"?"TEAM":"INDIVIDUAL"}</span>
+                  </div>
+                </div>
+              </div>
             </div>
-            <div style={{ display:"grid", gridTemplateColumns:"repeat(3,1fr)", gap:14, marginBottom:20 }}>
-              {[["Scripts","0 ready","#c084fc"],["Approved","0 approved","#34d399"],["Sessions","1 active","#38bdf8"]].map(([label,val,color]) => (
+            <div style={{ display:"grid", gridTemplateColumns:"repeat(4,1fr)", gap:14, marginBottom:20 }}>
+              {[["Total Scripts",totalScripts,"#7c3aed"],["Approved",approved.length,"#059669"],["In Review",review.length,"#d97706"],["Sessions",sessions.length,"#0284c7"]].map(([label,val,color]) => (
                 <div key={label} style={{ background:"#fff", borderRadius:10, padding:"18px", boxShadow:"0 2px 8px #0000000a" }}>
-                  <div style={{ fontSize:9, letterSpacing:"0.14em", color:"#999", fontFamily:mono, marginBottom:4 }}>{label.toUpperCase()}</div>
-                  <div style={{ fontSize:20, fontWeight:800, color:"#111", fontFamily:sans }}>{val}</div>
+                  <div style={{ fontSize:9, letterSpacing:"0.14em", color:"#999", fontFamily:mono, marginBottom:6 }}>{label.toUpperCase()}</div>
+                  <div style={{ fontSize:24, fontWeight:800, color, fontFamily:sans }}>{val}</div>
                 </div>
               ))}
             </div>
-            <div style={{ background:"#fff", borderRadius:10, padding:"20px 24px", boxShadow:"0 2px 8px #0000000a", textAlign:"center", color:"#aaa", fontFamily:sans, fontSize:13 }}>
-              Client portal coming soon — share approved scripts, collect feedback, and manage deliverables.
+            <div style={{ background:"#fff", borderRadius:12, boxShadow:"0 2px 8px #0000000a", marginBottom:20 }}>
+              <div style={{ padding:"16px 20px", borderBottom:"1px solid #f0f0f0" }}>
+                <div style={{ fontSize:9, letterSpacing:"0.14em", color:"#999", fontFamily:mono, marginBottom:4 }}>RECENT SCRIPTS</div>
+                <div style={{ fontSize:14, fontWeight:700, color:"#111", fontFamily:sans }}>Ready for Review</div>
+              </div>
+              {clientScripts.length === 0 ? (
+                <div style={{ padding:"32px 20px", textAlign:"center", color:"#bbb", fontFamily:sans, fontSize:13 }}>No scripts ready for client review yet.</div>
+              ) : (
+                clientScripts.slice(0, 5).map((s, i) => (
+                  <div key={s.id} style={{ padding:"14px 20px", borderBottom: i < Math.min(clientScripts.length, 5) - 1 ? "1px solid #f0f0f0" : "none", display:"flex", alignItems:"center", gap:12 }}>
+                    <div style={{ width:3, height:28, borderRadius:99, background:pillColor[s.pillar]||"#7c3aed" }}/>
+                    <div style={{ flex:1 }}>
+                      <div style={{ fontSize:13, fontWeight:600, color:"#111", fontFamily:sans }}>{s.title}</div>
+                      <div style={{ fontSize:11, color:"#999", fontFamily:sans, marginTop:2 }}>{s.hook?.slice(0, 60) || "No hook"}{s.hook?.length > 60 ? "..." : ""}</div>
+                    </div>
+                    <span style={{ fontSize:9, fontWeight:700, color:s.status==="APPROVED"?"#059669":"#d97706", background:s.status==="APPROVED"?"#dcfce7":"#fef3c7", borderRadius:4, padding:"3px 8px", fontFamily:mono }}>{s.status}</span>
+                  </div>
+                ))
+              )}
+            </div>
+            <div style={{ background:"#fff", borderRadius:12, padding:"20px", boxShadow:"0 2px 8px #0000000a" }}>
+              <div style={{ fontSize:9, letterSpacing:"0.14em", color:"#999", fontFamily:mono, marginBottom:10 }}>CONTENT BREAKDOWN</div>
+              <div style={{ display:"flex", gap:10 }}>
+                {["AUTHORITY","CONVERSION","REACH"].map(p => {
+                  const count = scripts.filter(s=>s.pillar===p).length;
+                  const pct = totalScripts > 0 ? Math.round((count/totalScripts)*100) : 0;
+                  const c = pillColor[p]||"#7c3aed";
+                  return (
+                    <div key={p} style={{ flex:1, background:"#f9fafb", borderRadius:8, padding:"14px", textAlign:"center" }}>
+                      <div style={{ fontSize:9, fontWeight:700, letterSpacing:"0.1em", color:c, fontFamily:mono, marginBottom:6 }}>{p}</div>
+                      <div style={{ fontSize:20, fontWeight:800, color:"#111", fontFamily:sans }}>{count}</div>
+                      <div style={{ fontSize:10, color:"#aaa", fontFamily:sans, marginTop:2 }}>{pct}%</div>
+                      <div style={{ height:4, background:"#e5e7eb", borderRadius:99, marginTop:8, overflow:"hidden" }}>
+                        <div style={{ height:"100%", width:`${pct}%`, background:c, borderRadius:99 }}/>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
           </div>
         )}
         {sub==="scripts" && (
-          <div style={{ maxWidth:720, margin:"0 auto", padding:"40px 32px", textAlign:"center", color:"#aaa", fontFamily:sans, fontSize:13 }}>
-            Approved scripts will appear here for client review.
+          <div style={{ maxWidth:720, margin:"0 auto", padding:"40px 32px" }}>
+            <div style={{ background:"#fff", borderRadius:12, boxShadow:"0 2px 8px #0000000a", marginBottom:20 }}>
+              <div style={{ padding:"16px 20px", borderBottom:"1px solid #f0f0f0", display:"flex", alignItems:"center", justifyContent:"space-between" }}>
+                <div>
+                  <div style={{ fontSize:9, letterSpacing:"0.14em", color:"#999", fontFamily:mono, marginBottom:4 }}>SCRIPTS FOR REVIEW</div>
+                  <div style={{ fontSize:14, fontWeight:700, color:"#111", fontFamily:sans }}>{clientScripts.length} scripts shared</div>
+                </div>
+              </div>
+              {clientScripts.length === 0 ? (
+                <div style={{ padding:"48px 20px", textAlign:"center", color:"#bbb", fontFamily:sans, fontSize:13 }}>No approved or in-review scripts yet. Scripts will appear here once they reach Review or Approved status.</div>
+              ) : (
+                clientScripts.map((s, i) => (
+                  <div key={s.id} style={{ padding:"20px", borderBottom: i < clientScripts.length - 1 ? "1px solid #f0f0f0" : "none" }}>
+                    <div style={{ display:"flex", alignItems:"flex-start", justifyContent:"space-between", marginBottom:10 }}>
+                      <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+                        <span style={{ fontSize:9, fontWeight:700, color:pillColor[s.pillar]||"#7c3aed", background:(pillColor[s.pillar]||"#7c3aed")+"14", border:`1px solid ${(pillColor[s.pillar]||"#7c3aed")}33`, borderRadius:3, padding:"2px 7px", fontFamily:mono }}>{s.pillar}</span>
+                        <span style={{ fontSize:9, color:s.status==="APPROVED"?"#059669":"#d97706", fontWeight:600, fontFamily:mono }}>{s.status}</span>
+                      </div>
+                      <span style={{ fontSize:10, color:"#999", fontFamily:mono }}>{s.duration}</span>
+                    </div>
+                    <div style={{ fontSize:15, fontWeight:700, color:"#111", fontFamily:sans, marginBottom:6 }}>{s.title}</div>
+                    {s.hook && <div style={{ fontSize:13, color:"#444", fontFamily:sans, marginBottom:6, fontStyle:"italic", lineHeight:1.5 }}>{s.hook}</div>}
+                    {s.body && <div style={{ fontSize:12, color:"#666", fontFamily:sans, lineHeight:1.6, marginBottom:10 }}>{s.body}</div>}
+                    {s.cta && <div style={{ fontSize:11, fontWeight:600, color:"#7c3aed", fontFamily:sans, marginBottom:12 }}>{s.cta}</div>}
+                    <div style={{ background:"#f9fafb", borderRadius:8, padding:"12px 14px" }}>
+                      <div style={{ fontSize:10, fontWeight:600, color:"#999", fontFamily:mono, marginBottom:6, letterSpacing:"0.08em" }}>CLIENT FEEDBACK</div>
+                      <textarea
+                        value={feedback[s.id] || ""}
+                        onChange={e => setFeedback(p => ({...p, [s.id]: e.target.value}))}
+                        placeholder="Add feedback or notes on this script..."
+                        style={{ width:"100%", background:"#fff", border:"1px solid #e5e7eb", borderRadius:6, padding:"8px 10px", fontSize:12, fontFamily:sans, color:"#333", resize:"vertical", minHeight:48, outline:"none" }}
+                      />
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
           </div>
         )}
         {sub==="brief" && (
-          <div style={{ maxWidth:720, margin:"0 auto", padding:"40px 32px", textAlign:"center", color:"#aaa", fontFamily:sans, fontSize:13 }}>
-            Client brief and strategy summary coming soon.
+          <div style={{ maxWidth:720, margin:"0 auto", padding:"40px 32px" }}>
+            <div style={{ background:"#fff", borderRadius:14, padding:"28px 32px", marginBottom:20, boxShadow:"0 2px 12px #0000000a" }}>
+              <div style={{ fontSize:9, letterSpacing:"0.14em", color:"#999", fontFamily:mono, marginBottom:10 }}>STRATEGY BRIEF</div>
+              <div style={{ fontSize:20, fontWeight:800, color:"#111", fontFamily:sans, marginBottom:16 }}>{client?.name}</div>
+              <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:16 }}>
+                {[["Niche", client?.niche], ["Type", client?.type==="team"?"Team Workspace":"Individual"], ["Status", client?.status], ["Scripts", `${totalScripts} total`]].map(([label, val]) => (
+                  <div key={label}>
+                    <div style={{ fontSize:9, letterSpacing:"0.12em", color:"#999", fontFamily:mono, marginBottom:3 }}>{label.toUpperCase()}</div>
+                    <div style={{ fontSize:13, fontWeight:600, color:"#111", fontFamily:sans }}>{val}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div style={{ background:"#fff", borderRadius:12, boxShadow:"0 2px 8px #0000000a", marginBottom:20 }}>
+              <div style={{ padding:"16px 20px", borderBottom:"1px solid #f0f0f0" }}>
+                <div style={{ fontSize:13, fontWeight:700, color:"#111", fontFamily:sans }}>Positioning</div>
+              </div>
+              <div style={{ padding:"16px 20px", fontSize:13, color:"#555", fontFamily:sans, lineHeight:1.6 }}>{STRAT_DATA.positioning}</div>
+            </div>
+            <div style={{ background:"#fff", borderRadius:12, boxShadow:"0 2px 8px #0000000a", marginBottom:20 }}>
+              <div style={{ padding:"16px 20px", borderBottom:"1px solid #f0f0f0" }}>
+                <div style={{ fontSize:13, fontWeight:700, color:"#111", fontFamily:sans }}>Target Audience</div>
+              </div>
+              <div style={{ padding:"16px 20px", fontSize:13, color:"#555", fontFamily:sans, lineHeight:1.6 }}>{STRAT_DATA.audience}</div>
+            </div>
+            <div style={{ background:"#fff", borderRadius:12, boxShadow:"0 2px 8px #0000000a", marginBottom:20 }}>
+              <div style={{ padding:"16px 20px", borderBottom:"1px solid #f0f0f0" }}>
+                <div style={{ fontSize:13, fontWeight:700, color:"#111", fontFamily:sans }}>Key Pain Points</div>
+              </div>
+              <div style={{ padding:"16px 20px" }}>
+                {STRAT_DATA.painPoints.map((p, i) => (
+                  <div key={i} style={{ display:"flex", alignItems:"center", gap:8, padding:"6px 0" }}>
+                    <div style={{ width:5, height:5, borderRadius:"50%", background:"#ef4444", flexShrink:0 }}/>
+                    <span style={{ fontSize:12, color:"#555", fontFamily:sans }}>{p}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div style={{ background:"#fff", borderRadius:12, boxShadow:"0 2px 8px #0000000a", marginBottom:20 }}>
+              <div style={{ padding:"16px 20px", borderBottom:"1px solid #f0f0f0" }}>
+                <div style={{ fontSize:13, fontWeight:700, color:"#111", fontFamily:sans }}>Audience Goals</div>
+              </div>
+              <div style={{ padding:"16px 20px" }}>
+                {STRAT_DATA.goals.map((g, i) => (
+                  <div key={i} style={{ display:"flex", alignItems:"center", gap:8, padding:"6px 0" }}>
+                    <div style={{ width:5, height:5, borderRadius:"50%", background:"#059669", flexShrink:0 }}/>
+                    <span style={{ fontSize:12, color:"#555", fontFamily:sans }}>{g}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:16 }}>
+              <div style={{ background:"#fff", borderRadius:12, boxShadow:"0 2px 8px #0000000a" }}>
+                <div style={{ padding:"16px 20px", borderBottom:"1px solid #f0f0f0" }}>
+                  <div style={{ fontSize:13, fontWeight:700, color:"#111", fontFamily:sans }}>Conversion Goal</div>
+                </div>
+                <div style={{ padding:"16px 20px", fontSize:13, fontWeight:600, color:"#7c3aed", fontFamily:sans }}>{STRAT_DATA.conversionGoal}</div>
+              </div>
+              <div style={{ background:"#fff", borderRadius:12, boxShadow:"0 2px 8px #0000000a" }}>
+                <div style={{ padding:"16px 20px", borderBottom:"1px solid #f0f0f0" }}>
+                  <div style={{ fontSize:13, fontWeight:700, color:"#111", fontFamily:sans }}>Brand Tone</div>
+                </div>
+                <div style={{ padding:"16px 20px", fontSize:13, fontWeight:600, color:"#0284c7", fontFamily:sans }}>{STRAT_DATA.brandTone}</div>
+              </div>
+            </div>
           </div>
         )}
       </div>
@@ -4334,7 +4585,7 @@ function Workspace({ client, initialTab, onTabChange, onBack }) {
         {tab==="content"    && <ContentTab scripts={scripts} setScripts={setScripts} doctors={isTeam ? REVIVE_DOCTORS : null} />}
         {tab==="resources"  && <ResourcesTab />}
         {tab==="production" && <ProductionTab scripts={scripts} setScripts={setScripts} />}
-        {tab==="clientview" && <ClientViewTab client={client} />}
+        {tab==="clientview" && <ClientViewTab client={client} scripts={scripts} />}
       </div>
     </div>
   );
@@ -4345,20 +4596,21 @@ export default function App() {
   const [page, setPage] = useState("studio");
   const [hiredIds, setHiredIds] = useState({ editors:[3], videographers:[2], vas:[2] });
   const [lastTab, setLastTab] = useState({});
+  const [search, setSearch] = useState("");
 
-  const openClient = (c) => { setClient(c); setPage("studio"); };
+  const openClient = (c) => { setClient(c); setPage("studio"); setSearch(""); };
 
   return (
     <div style={{ display:"flex", height:"100vh", background:T.base, color:T.ink, fontFamily:"'DM Sans',sans-serif", overflow:"hidden" }}>
       <GlobalStyles />
-      <Sidebar page={page} setPage={setPage} />
+      <Sidebar page={page} setPage={setPage} search={search} setSearch={setSearch} />
       <div style={{ flex:1, display:"flex", flexDirection:"column", overflow:"hidden" }}>
         {(() => {
           if (page === "team") return <MyTeamPage hiredIds={hiredIds} setHiredIds={setHiredIds} />;
           if (page === "talent") return <TalentNetwork hiredIds={hiredIds} setHiredIds={setHiredIds} />;
           if (page === "chat") return <ChatPage hiredIds={hiredIds} />;
           if (client) return <Workspace client={client} initialTab={lastTab[client.id]} onTabChange={(t) => setLastTab(p => ({...p, [client.id]: t}))} onBack={() => setClient(null)} />;
-          return <ClientsPage onSelect={openClient} />;
+          return <ClientsPage onSelect={openClient} search={search} />;
         })()}
       </div>
     </div>
