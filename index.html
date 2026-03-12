@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Clips Agency</title>
+  <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body, #root { height: 100%; }
+    body { background: #0a0a0f; }
+    #loading {
+      display: flex; align-items: center; justify-content: center;
+      height: 100vh; color: #c084fc;
+      font-family: 'DM Sans', sans-serif; font-size: 15px; gap: 10px;
+    }
+    #loading-spinner {
+      width: 18px; height: 18px; border: 2px solid #c084fc33;
+      border-top-color: #c084fc; border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+  <div id="loading">
+    <div id="loading-spinner"></div>
+    Loading Clips Agency...
+  </div>
+  <div id="root"></div>
+
+  <script>
+    // Expose all React APIs as globals so the JSX file can use them without importing
+    const _R = React;
+    window.useState       = _R.useState;
+    window.useEffect      = _R.useEffect;
+    window.useRef         = _R.useRef;
+    window.useCallback    = _R.useCallback;
+    window.useMemo        = _R.useMemo;
+    window.useContext     = _R.useContext;
+    window.useReducer     = _R.useReducer;
+    window.useLayoutEffect = _R.useLayoutEffect;
+    window.useId          = _R.useId;
+    window.createContext  = _R.createContext;
+    window.forwardRef     = _R.forwardRef;
+    window.memo           = _R.memo;
+    window.Fragment       = _R.Fragment;
+
+    fetch('clips-agency-final.jsx?v=' + Date.now())
+      .then(r => {
+        if (!r.ok) throw new Error('Failed to load clips-agency-final.jsx: ' + r.status);
+        return r.text();
+      })
+      .then(code => {
+        // Strip the ES module import (we use globals instead)
+        code = code.replace(/^import\s+\{[^}]+\}\s+from\s+['"]react['"];\s*\n?/m, '');
+
+        // Strip export default, keep the function, then capture it
+        code = code.replace(/export default (function App\b)/, '$1');
+        code += '\nwindow.__CLIPS_APP__ = App;';
+
+        // Transpile JSX → JS with Babel standalone
+        const result = Babel.transform(code, {
+          presets: [['react', { runtime: 'classic' }]],
+          filename: 'clips-agency-final.jsx'
+        });
+
+        // Execute in global scope so all window.* hooks are reachable
+        (0, eval)(result.code);
+
+        // Hide loading indicator
+        document.getElementById('loading').style.display = 'none';
+
+        // Mount React app
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(React.createElement(window.__CLIPS_APP__));
+      })
+      .catch(err => {
+        const el = document.getElementById('loading');
+        el.innerHTML = '<span style="color:#f87171">Error: ' + err.message + '</span>';
+        console.error(err);
+      });
+  </script>
+</body>
+</html>
