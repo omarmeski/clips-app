@@ -252,6 +252,46 @@ const RESOURCES_DATA = [
   { id:4, ref:"@creator_4", url:"https://example.com/video/4", pillar:"AUTHORITY", platform:"TikTok",  niche:"Clinic", views:"100k", likes:"10k" },
   { id:5, ref:"@creator_5", url:"https://example.com/video/5", pillar:"CONVERSION", platform:"IG Reels", niche:"Coaching", views:"100k", likes:"10k" },
 ];
+const IDEAS_DATA = [
+  { id:1, pillar:"AUTHORITY", title:"Behind the scenes of a client shoot", desc:"Show the full process — pre-production, on-set energy, and final results. Builds trust and transparency.", status:"approved", submittedBy:"agency", upvotes:3 },
+  { id:2, pillar:"REACH", title:"Day in the life — Dubai luxury investor", desc:"Relatable aspirational content following a real client through their day. Strong hook potential.", status:"idea", submittedBy:"client", upvotes:5 },
+  { id:3, pillar:"CONVERSION", title:"Before & after testimonial series", desc:"Client transformation story with specific numbers and timeline. High trust, high conversion.", status:"in-progress", submittedBy:"agency", upvotes:2 },
+  { id:4, pillar:"AUTHORITY", title:"FAQ: Top 5 questions we get every week", desc:"Address the most common objections and questions directly. Positions you as the go-to expert.", status:"idea", submittedBy:"client", upvotes:1 },
+];
+const AI_HOOKS = {
+  AUTHORITY: [
+    { text:"Here's what 95% of people in this industry get completely wrong.", type:"CONTRARIAN", strength:9 },
+    { text:"I've spent 10 years studying this — here's the honest truth nobody tells you.", type:"AUTHORITY", strength:8 },
+    { text:"The uncomfortable reality about this topic that nobody wants to talk about.", type:"PAIN", strength:8 },
+  ],
+  CONVERSION: [
+    { text:"This one shift changed everything for our clients — here's exactly what happened.", type:"VALUE", strength:9 },
+    { text:"Real result in under 90 days — here's the exact framework we used.", type:"VALUE", strength:10 },
+    { text:"Stop doing this one thing. Start doing this instead. The difference is everything.", type:"CONTRARIAN", strength:8 },
+  ],
+  REACH: [
+    { text:"POV: You just discovered the thing that changes how you think about this forever.", type:"CURIOSITY", strength:8 },
+    { text:"Things I genuinely wish someone had told me before I started doing this.", type:"VALUE", strength:9 },
+    { text:"Not everyone will agree with this — but here's my honest take.", type:"CONTRARIAN", strength:7 },
+  ],
+};
+const OPTIMIZE_COPY = {
+  AUTHORITY: {
+    hook:"Here's what most people in this space get completely wrong — and it's costing them.",
+    body:"The conventional wisdom says one thing. The data says another. After working with hundreds of clients in this space, we've seen the same pattern repeat over and over. The people who succeed aren't doing what you think. Here's what's actually working right now.",
+    cta:"Follow for more insights like this. Save this post — you'll want to come back to it.",
+  },
+  CONVERSION: {
+    hook:"This single strategy drove more results than everything else we tried combined.",
+    body:"Most people overcomplicate this. They chase tactics, tools, and trends. The clients who consistently win are doing something deceptively simple. Here's the exact approach, broken down step by step, with nothing held back.",
+    cta:"DM us the word RESULTS to get the full breakdown sent to you directly.",
+  },
+  REACH: {
+    hook:"Nobody is talking about this — and once you see it, you can't unsee it.",
+    body:"This started as a small experiment. Then the numbers came back and we couldn't believe what we were looking at. Whether you're just starting out or already ahead of the curve, this is the kind of thing that makes you rethink everything you thought you knew.",
+    cta:"Follow so you don't miss what's coming next. This is just the beginning.",
+  },
+};
 const TEMPLATES_DATA_SEED = [
   { id:1, name:"The Contrarian Framework", desc:"Challenge a common belief your audience holds. Take the opposite stance and back it up.", pillar:"AUTHORITY", duration:"45s", tags:["viral","authority"], fields:[
     { id:"f1", label:"Hook", hint:"Start with the belief you're about to challenge", type:"textarea" },
@@ -3748,45 +3788,157 @@ function ScriptEditorDrawer({ script, onClose, onUpdate, scripts, setScripts, av
   const [cta,  setCta]  = useState(script.cta);
   const [status, setStatus] = useState(script.status);
   const [title, setTitle] = useState(script.title);
+  const [avatarId, setAvatarId] = useState(script.avatarId || "");
+  const [optimizing, setOptimizing] = useState(null);
+  const [showAltHooks, setShowAltHooks] = useState(false);
+  const [altHooks, setAltHooks] = useState([]);
+  const [loadingAlt, setLoadingAlt] = useState(false);
 
   const pillarColor = { AUTHORITY:T.auth, CONVERSION:T.conv, REACH:T.reach };
   const pc = pillarColor[script.pillar] || T.gold;
   const ta = { width:"100%", background:T.lift, border:`1px solid ${T.line}`, borderRadius:5, padding:"9px 12px", color:T.ink, fontSize:12, outline:"none", fontFamily:sans, boxSizing:"border-box", resize:"vertical", lineHeight:1.6 };
 
   const save = () => {
-    const updated = { ...script, hook, body, cta, status, title };
+    const updated = { ...script, hook, body, cta, status, title, avatarId: avatarId || undefined };
     onUpdate(updated);
   };
 
+  const optimize = (field) => {
+    setOptimizing(field);
+    setTimeout(() => {
+      const copy = OPTIMIZE_COPY[script.pillar] || OPTIMIZE_COPY.AUTHORITY;
+      if (field==="hook") setHook(copy.hook);
+      else if (field==="body") setBody(copy.body);
+      else if (field==="cta") setCta(copy.cta);
+      setOptimizing(null);
+    }, 1800);
+  };
+
+  const generateAltHooks = () => {
+    setLoadingAlt(true);
+    setShowAltHooks(true);
+    setTimeout(() => {
+      setAltHooks(AI_HOOKS[script.pillar] || AI_HOOKS.AUTHORITY);
+      setLoadingAlt(false);
+    }, 1600);
+  };
+
+  const selectedAvatar = (avatars||[]).find(a=>a.id===avatarId);
+
+  const OptBtn = ({ field }) => (
+    <button onClick={()=>optimize(field)} disabled={!!optimizing}
+      style={{ fontSize:9, color:optimizing===field?T.gold:T.dim, background:optimizing===field?T.goldBg:"transparent", border:`1px solid ${optimizing===field?T.goldLine:T.line}`, borderRadius:3, padding:"2px 8px", cursor:"pointer", fontFamily:mono, letterSpacing:"0.06em", display:"inline-flex", alignItems:"center", gap:4 }}>
+      {optimizing===field ? (
+        <><span style={{ display:"inline-block", width:8, height:8, borderRadius:"50%", border:`1.5px solid ${T.gold}`, borderTopColor:"transparent", animation:"sedSpin 0.6s linear infinite" }}/>Optimizing…</>
+      ) : "✦ Optimize"}
+    </button>
+  );
+
   return (
-    <div style={{ width:460, borderLeft:`1px solid ${T.line}`, background:T.raised, display:"flex", flexDirection:"column", overflow:"hidden", flexShrink:0 }}>
+    <div style={{ width:480, borderLeft:`1px solid ${T.line}`, background:T.raised, display:"flex", flexDirection:"column", overflow:"hidden", flexShrink:0 }}>
+      <style>{`@keyframes sedSpin{to{transform:rotate(360deg)}}`}</style>
+
+      {/* Header */}
       <div style={{ padding:"14px 20px", borderBottom:`1px solid ${T.line}`, display:"flex", alignItems:"center", gap:10, flexShrink:0 }}>
         <div style={{ width:3, height:24, background:pc, borderRadius:99 }}/>
-        <div style={{ flex:1 }}>
+        <div style={{ flex:1, minWidth:0 }}>
           <input value={title} onChange={e=>setTitle(e.target.value)}
             style={{ background:"transparent", border:"none", color:T.ink, fontSize:14, fontWeight:700, outline:"none", fontFamily:sans, width:"100%" }}/>
           <span style={{ fontSize:9, fontWeight:700, color:pc, background:pc+"18", border:`1px solid ${pc}33`, borderRadius:2, padding:"1px 6px", fontFamily:mono, letterSpacing:"0.1em" }}>{script.pillar}</span>
         </div>
-        <select value={status} onChange={e=>{setStatus(e.target.value);}}
+        <select value={status} onChange={e=>setStatus(e.target.value)}
           style={{ background:T.surface, border:`1px solid ${T.line}`, color:T.ink, borderRadius:4, padding:"4px 8px", fontSize:10, fontFamily:mono, outline:"none" }}>
           {["DRAFT","REVIEW","APPROVED","DONE"].map(s=><option key={s}>{s}</option>)}
         </select>
         <button onClick={onClose} style={{ background:"none", border:"none", color:T.ghost, cursor:"pointer", fontSize:18, lineHeight:1 }}>×</button>
       </div>
-      <div style={{ flex:1, overflowY:"auto", padding:"18px 20px" }}>
+
+      {/* Avatar selector */}
+      <div style={{ padding:"9px 20px", borderBottom:`1px solid ${T.line}`, display:"flex", alignItems:"center", gap:8, flexShrink:0 }}>
+        <span style={{ fontSize:9, letterSpacing:"0.12em", color:T.dim, fontFamily:mono, flexShrink:0 }}>AVATAR</span>
+        <select value={avatarId} onChange={e=>setAvatarId(e.target.value)}
+          style={{ flex:1, background:T.lift, border:`1px solid ${T.line}`, color: avatarId ? T.ink : T.dim, borderRadius:4, padding:"5px 8px", fontSize:11, fontFamily:sans, outline:"none" }}>
+          <option value="">— No avatar —</option>
+          {(avatars||[]).map(a=><option key={a.id} value={a.id}>{a.name}</option>)}
+        </select>
+        {selectedAvatar && (
+          <div style={{ display:"flex", alignItems:"center", gap:5, flexShrink:0 }}>
+            <div style={{ width:8, height:8, borderRadius:"50%", background:selectedAvatar.color||T.gold }}/>
+            <span style={{ fontSize:10, color:T.muted, fontFamily:mono }}>{selectedAvatar.name}</span>
+          </div>
+        )}
+      </div>
+
+      {/* Fields */}
+      <div style={{ flex:1, overflowY:"auto", padding:"16px 20px" }}>
+
+        {/* HOOK */}
         <div style={{ marginBottom:14 }}>
-          <div style={{ fontSize:9, letterSpacing:"0.14em", color:T.gold, fontFamily:mono, marginBottom:5 }}>HOOK</div>
+          <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:5 }}>
+            <div style={{ fontSize:9, letterSpacing:"0.14em", color:T.gold, fontFamily:mono }}>HOOK</div>
+            <div style={{ flex:1 }}/>
+            <OptBtn field="hook"/>
+          </div>
           <textarea value={hook} onChange={e=>setHook(e.target.value)} rows={2} style={ta}/>
+          {/* ALT hooks trigger */}
+          <div style={{ marginTop:6 }}>
+            <button onClick={()=>{ if(!showAltHooks || altHooks.length===0){ generateAltHooks(); } else { setShowAltHooks(p=>!p); } }}
+              style={{ fontSize:9, color:showAltHooks?T.reach:T.dim, background:showAltHooks?T.reachBg:"transparent", border:`1px solid ${showAltHooks?"#38bdf833":T.line}`, borderRadius:3, padding:"3px 10px", cursor:"pointer", fontFamily:mono, letterSpacing:"0.06em" }}>
+              ⚡ ALT HOOKS
+            </button>
+          </div>
+          {showAltHooks && (
+            <div style={{ marginTop:8, border:`1px solid ${T.line}`, borderRadius:8, overflow:"hidden" }}>
+              {loadingAlt ? (
+                <div style={{ padding:"18px", textAlign:"center", color:T.dim, fontFamily:mono, fontSize:11 }}>Generating alternatives…</div>
+              ) : altHooks.map((h, i) => {
+                const tc = TYPE_CFG[h.type] || { color:T.gold, bg:T.goldBg, line:T.goldLine };
+                return (
+                  <div key={i} style={{ padding:"12px 14px", borderTop:i>0?`1px solid ${T.line}`:"none", background:T.lift }}>
+                    <div style={{ display:"flex", alignItems:"center", gap:6, marginBottom:7 }}>
+                      <span style={{ fontSize:9, color:tc.color, background:tc.bg, border:`1px solid ${tc.line}`, borderRadius:2, padding:"1px 6px", fontFamily:mono, letterSpacing:"0.06em" }}>{h.type}</span>
+                      <div style={{ flex:1 }}/>
+                      <div style={{ display:"flex", gap:2 }}>
+                        {Array.from({length:10}).map((_,j)=>(
+                          <div key={j} style={{ width:11, height:3, borderRadius:2, background:j<h.strength?tc.color:T.ghost+"55" }}/>
+                        ))}
+                      </div>
+                      <span style={{ fontSize:9, color:T.dim, fontFamily:mono }}>{h.strength}/10</span>
+                    </div>
+                    <div style={{ fontSize:12, color:T.ink, fontFamily:sans, lineHeight:1.55, marginBottom:8 }}>{h.text}</div>
+                    <button onClick={()=>{ setHook(h.text); setShowAltHooks(false); }}
+                      style={{ fontSize:10, color:T.gold, background:"transparent", border:`1px solid ${T.goldLine}`, borderRadius:3, padding:"3px 10px", cursor:"pointer", fontFamily:mono }}>
+                      Use this
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
+
+        {/* BODY */}
         <div style={{ marginBottom:14 }}>
-          <div style={{ fontSize:9, letterSpacing:"0.14em", color:T.reach, fontFamily:mono, marginBottom:5 }}>BODY</div>
+          <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:5 }}>
+            <div style={{ fontSize:9, letterSpacing:"0.14em", color:T.reach, fontFamily:mono }}>BODY</div>
+            <div style={{ flex:1 }}/>
+            <OptBtn field="body"/>
+          </div>
           <textarea value={body} onChange={e=>setBody(e.target.value)} rows={5} style={ta}/>
         </div>
+
+        {/* CTA */}
         <div>
-          <div style={{ fontSize:9, letterSpacing:"0.14em", color:T.conv, fontFamily:mono, marginBottom:5 }}>CALL TO ACTION</div>
+          <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:5 }}>
+            <div style={{ fontSize:9, letterSpacing:"0.14em", color:T.conv, fontFamily:mono }}>CALL TO ACTION</div>
+            <div style={{ flex:1 }}/>
+            <OptBtn field="cta"/>
+          </div>
           <textarea value={cta} onChange={e=>setCta(e.target.value)} rows={2} style={ta}/>
         </div>
       </div>
+
+      {/* Footer */}
       <div style={{ padding:"12px 20px", borderTop:`1px solid ${T.line}`, display:"flex", gap:8, flexShrink:0 }}>
         <button onClick={onClose} style={{ flex:1, padding:"8px", background:"none", border:`1px solid ${T.line}`, borderRadius:5, color:T.dim, fontSize:12, cursor:"pointer", fontFamily:sans }}>Discard</button>
         <button onClick={save} style={{ flex:2, padding:"8px", background:T.gold, border:"none", borderRadius:5, color:"#fff", fontWeight:700, fontSize:12, cursor:"pointer", fontFamily:sans }}>Save Script</button>
@@ -3795,18 +3947,17 @@ function ScriptEditorDrawer({ script, onClose, onUpdate, scripts, setScripts, av
   );
 }
 
-function ContentTab({ scripts, setScripts, avatars = INIT_AVATARS, doctors = null }) {
+function ContentTab({ scripts, setScripts, avatars = INIT_AVATARS, doctors = null, ideas = [], setIdeas = () => {} }) {
   const mono = "'DM Mono', monospace";
   const sans = "'DM Sans', sans-serif";
   const [filter, setFilter] = useState("All");
-  const [viewMode, setViewMode] = useState("sessions");
-  const [showTemplates, setShowTemplates] = useState(false);
-  const [openEditor, setOpenEditor] = useState(null);
-  const [openSession, setOpenSession] = useState(null);
+  const [view, setView] = useState("sessions"); // "sessions" | "ideas"
+  const [activeSession, setActiveSession] = useState(null);
   const [editScript, setEditScript] = useState(null);
+  const [showScriptPicker, setShowScriptPicker] = useState(false);
+  const [pickerShowTemplates, setPickerShowTemplates] = useState(false);
 
   const sessions = [...new Set(scripts.map(s=>s.session))].sort();
-  const filteredScripts = filter==="All" ? scripts : scripts.filter(s=>s.pillar===filter);
   const pillarColor = { AUTHORITY:T.auth, CONVERSION:T.conv, REACH:T.reach };
   const pillarBg    = { AUTHORITY:T.authBg, CONVERSION:T.convBg, REACH:T.reachBg };
 
@@ -3816,103 +3967,169 @@ function ContentTab({ scripts, setScripts, avatars = INIT_AVATARS, doctors = nul
   };
 
   const handleUseTemplate = (tmpl) => {
-    const s = { id:Date.now()+Math.random(), title:tmpl.name, pillar:tmpl.pillar, status:"DRAFT", session:"Session 1", hook:tmpl.vals?.f1||"", altHooks:[], body:tmpl.vals?.f2||"", cta:tmpl.vals?.f5||tmpl.vals?.f6||"", duration:tmpl.duration||"~30s" };
+    const s = { id:Date.now()+Math.random(), title:tmpl.name, pillar:tmpl.pillar, status:"DRAFT", session:activeSession||sessions[0]||"Session 1", hook:tmpl.vals?.f1||"", altHooks:[], body:tmpl.vals?.f2||"", cta:tmpl.vals?.f5||tmpl.vals?.f6||"", duration:tmpl.duration||"~30s" };
     setScripts(p=>[...p,s]);
   };
 
-  if (showTemplates) {
-    return <TemplatesView onBack={()=>setShowTemplates(false)} onUse={handleUseTemplate}/>;
+  const addNewSession = () => {
+    const name = `Session ${sessions.length + 1}`;
+    const s = { id:Date.now(), title:"New Script", pillar:"REACH", status:"DRAFT", session:name, hook:"", altHooks:[], body:"", cta:"", duration:"~30s" };
+    setScripts(p=>[...p,s]);
+    setActiveSession(name);
+  };
+
+  // ── SESSION FOLDER LIST VIEW ──
+  if (!activeSession) {
+    if (view === "ideas") {
+      return (
+        <div style={{ flex:1, display:"flex", flexDirection:"column", overflow:"hidden" }}>
+          {/* Sessions / Ideas sub-nav */}
+          <div style={{ display:"flex", borderBottom:`1px solid ${T.line}`, background:T.surface, flexShrink:0 }}>
+            {[{id:"sessions",label:"Sessions"},{id:"ideas",label:"Ideas"}].map(v => (
+              <button key={v.id} onClick={()=>setView(v.id)}
+                style={{ height:44, padding:"0 20px", fontSize:12, fontWeight:view===v.id?700:500, color:view===v.id?(v.id==="ideas"?"#34d399":T.gold):T.dim, background:"transparent", border:"none", borderBottom:`2px solid ${view===v.id?(v.id==="ideas"?"#34d399":T.gold):"transparent"}`, cursor:"pointer", fontFamily:sans, letterSpacing:"0.04em", display:"flex", alignItems:"center", gap:6 }}>
+                {v.id==="ideas" && <span style={{ width:5, height:5, borderRadius:"50%", background:view===v.id?"#34d399":"#34d39944" }}/>}
+                {v.label}
+              </button>
+            ))}
+          </div>
+          <IdeasTab ideas={ideas} setIdeas={setIdeas} />
+        </div>
+      );
+    }
+    return (
+      <div style={{ flex:1, display:"flex", flexDirection:"column", overflow:"hidden" }}>
+        {/* Sessions / Ideas sub-nav */}
+        <div style={{ display:"flex", borderBottom:`1px solid ${T.line}`, background:T.surface, flexShrink:0, alignItems:"center" }}>
+          {[{id:"sessions",label:"Sessions"},{id:"ideas",label:"Ideas"}].map(v => (
+            <button key={v.id} onClick={()=>setView(v.id)}
+              style={{ height:44, padding:"0 20px", fontSize:12, fontWeight:view===v.id?700:500, color:view===v.id?(v.id==="ideas"?"#34d399":T.gold):T.dim, background:"transparent", border:"none", borderBottom:`2px solid ${view===v.id?(v.id==="ideas"?"#34d399":T.gold):"transparent"}`, cursor:"pointer", fontFamily:sans, letterSpacing:"0.04em", display:"flex", alignItems:"center", gap:6 }}>
+              {v.id==="ideas" && <span style={{ width:5, height:5, borderRadius:"50%", background:view===v.id?"#34d399":"#34d39944" }}/>}
+              {v.label}
+            </button>
+          ))}
+          <div style={{ flex:1 }}/>
+          <button onClick={addNewSession}
+            style={{ fontSize:11, fontWeight:700, color:"#fff", background:T.gold, border:"none", borderRadius:5, padding:"7px 16px", cursor:"pointer", fontFamily:mono, marginRight:16 }}>
+            + New Session
+          </button>
+        </div>
+        <div style={{ flex:1, overflowY:"auto", padding:"24px" }}>
+          <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill, minmax(220px,1fr))", gap:14 }}>
+            {sessions.map(session => {
+              const sessScripts = scripts.filter(s=>s.session===session);
+              const approved = sessScripts.filter(s=>s.status==="APPROVED").length;
+              const review = sessScripts.filter(s=>s.status==="REVIEW").length;
+              const draft = sessScripts.filter(s=>s.status==="DRAFT").length;
+              return (
+                <div key={session} onClick={()=>setActiveSession(session)}
+                  style={{ background:T.surface, border:`1px solid ${T.line}`, borderRadius:12, padding:"22px 20px", cursor:"pointer", transition:"all 0.15s" }}
+                  onMouseEnter={e=>{ e.currentTarget.style.borderColor=T.gold+"66"; e.currentTarget.style.background=T.raised; }}
+                  onMouseLeave={e=>{ e.currentTarget.style.borderColor=T.line; e.currentTarget.style.background=T.surface; }}>
+                  <div style={{ marginBottom:14 }}>
+                    <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke={T.gold} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
+                    </svg>
+                  </div>
+                  <div style={{ fontSize:14, fontWeight:700, color:T.ink, fontFamily:sans, marginBottom:4 }}>{session}</div>
+                  <div style={{ fontSize:11, color:T.dim, fontFamily:mono, marginBottom:12 }}>{sessScripts.length} scripts</div>
+                  <div style={{ display:"flex", gap:5, flexWrap:"wrap" }}>
+                    {approved>0 && <span style={{ fontSize:9, color:T.conv, background:T.convBg, border:`1px solid ${T.conv}33`, borderRadius:2, padding:"2px 7px", fontFamily:mono }}>{approved} APPROVED</span>}
+                    {review>0 && <span style={{ fontSize:9, color:T.gold, background:T.goldBg, border:`1px solid ${T.goldLine}`, borderRadius:2, padding:"2px 7px", fontFamily:mono }}>{review} REVIEW</span>}
+                    {draft>0 && <span style={{ fontSize:9, color:T.ghost, background:T.lift, border:`1px solid ${T.line}`, borderRadius:2, padding:"2px 7px", fontFamily:mono }}>{draft} DRAFT</span>}
+                  </div>
+                </div>
+              );
+            })}
+            {sessions.length===0 && (
+              <div style={{ gridColumn:"1/-1", textAlign:"center", padding:"60px 20px", color:T.ghost, fontFamily:sans, fontSize:13 }}>
+                No sessions yet. Click "+ New Session" to get started.
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    );
   }
+
+  // ── SESSION INTERIOR VIEW ──
+  const allSessScripts = scripts.filter(s=>s.session===activeSession);
+  const sessScripts = filter==="All" ? allSessScripts : allSessScripts.filter(s=>s.pillar===filter);
 
   return (
     <div style={{ flex:1, display:"flex", overflow:"hidden" }}>
       <div style={{ flex:1, display:"flex", flexDirection:"column", overflow:"hidden" }}>
-        {/* Top bar */}
-        <div style={{ padding:"12px 24px", borderBottom:`1px solid ${T.line}`, background:T.surface, display:"flex", alignItems:"center", gap:10, flexShrink:0 }}>
+        {/* Session header */}
+        <div style={{ padding:"10px 20px", borderBottom:`1px solid ${T.line}`, background:T.surface, display:"flex", alignItems:"center", gap:8, flexShrink:0, flexWrap:"wrap" }}>
+          <button onClick={()=>{ setActiveSession(null); setFilter("All"); }}
+            style={{ background:"none", border:"none", color:T.dim, cursor:"pointer", display:"flex", alignItems:"center", gap:5, fontSize:12, fontFamily:sans, padding:"4px 0", flexShrink:0 }}>
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 12H5"/><path d="M12 19l-7-7 7-7"/></svg>
+            Sessions
+          </button>
+          <div style={{ width:1, height:18, background:T.line, flexShrink:0 }} />
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke={T.gold} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink:0 }}>
+            <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
+          </svg>
+          <span style={{ fontSize:13, fontWeight:700, color:T.ink, fontFamily:sans }}>{activeSession}</span>
+          <span style={{ fontSize:10, color:T.dim, fontFamily:mono }}>{allSessScripts.length} scripts</span>
+          <div style={{ flex:1 }}/>
           {["All","AUTHORITY","CONVERSION","REACH"].map(f => (
             <button key={f} onClick={()=>setFilter(f)}
-              style={{ fontSize:11, fontWeight:filter===f?700:500, color:filter===f?T.gold:T.dim, background:filter===f?T.goldBg:"transparent", border:`1px solid ${filter===f?T.goldLine:"transparent"}`, borderRadius:4, padding:"5px 12px", cursor:"pointer", fontFamily:mono, letterSpacing:"0.06em" }}>
+              style={{ fontSize:10, fontWeight:filter===f?700:500, color:filter===f?T.gold:T.dim, background:filter===f?T.goldBg:"transparent", border:`1px solid ${filter===f?T.goldLine:"transparent"}`, borderRadius:4, padding:"4px 10px", cursor:"pointer", fontFamily:mono }}>
               {f}
             </button>
           ))}
-          <div style={{ flex:1 }}/>
-          <button onClick={()=>setShowTemplates(true)}
-            style={{ fontSize:11, fontWeight:700, color:T.dim, background:T.lift, border:`1px solid ${T.line}`, borderRadius:5, padding:"6px 14px", cursor:"pointer", fontFamily:mono, letterSpacing:"0.06em" }}>
-            Templates
-          </button>
-          <button onClick={()=>{ const s={id:Date.now(),title:"New Script",pillar:"REACH",status:"DRAFT",session:sessions[0]||"Session 1",hook:"",altHooks:[],body:"",cta:"",duration:"~30s"}; setScripts(p=>[...p,s]); setEditScript(s); }}
-            style={{ fontSize:11, fontWeight:700, color:"#fff", background:T.gold, border:"none", borderRadius:5, padding:"6px 14px", cursor:"pointer", fontFamily:mono, letterSpacing:"0.06em" }}>
+          <button onClick={()=>{ setShowScriptPicker(true); setPickerShowTemplates(false); }}
+            style={{ fontSize:11, fontWeight:700, color:"#fff", background:T.gold, border:"none", borderRadius:5, padding:"6px 14px", cursor:"pointer", fontFamily:mono }}>
             + Script
           </button>
         </div>
 
-        {/* Sessions view */}
+        {/* Script list */}
         <div style={{ flex:1, overflowY:"auto", padding:"20px 24px" }}>
-          {sessions.map(session => {
-            const sessScripts = filteredScripts.filter(s=>s.session===session);
-            const isOpen = openSession===session;
-            return (
-              <div key={session} style={{ marginBottom:16 }}>
-                <div onClick={()=>setOpenSession(isOpen?null:session)}
-                  style={{ display:"flex", alignItems:"center", gap:10, padding:"12px 16px", background:T.surface, border:`1px solid ${T.line}`, borderRadius:8, cursor:"pointer", marginBottom: isOpen?0:0 }}
-                  onMouseEnter={e=>e.currentTarget.style.borderColor=T.lineHi}
-                  onMouseLeave={e=>e.currentTarget.style.borderColor=T.line}>
-                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke={T.dim} strokeWidth="2.5"
-                    style={{ transform:isOpen?"rotate(90deg)":"rotate(0deg)", transition:"transform 0.15s", flexShrink:0 }}>
-                    <path d="M9 18l6-6-6-6"/>
-                  </svg>
-                  <span style={{ fontSize:13, fontWeight:700, color:T.ink, fontFamily:sans, flex:1 }}>{session}</span>
-                  <span style={{ fontSize:10, color:T.dim, fontFamily:mono }}>{sessScripts.length} scripts</span>
-                  <div style={{ display:"flex", gap:5 }}>
-                    {["APPROVED","DRAFT","REVIEW"].map(st => {
-                      const count = sessScripts.filter(s=>s.status===st).length;
-                      if(!count) return null;
-                      const c = st==="APPROVED"?T.conv:st==="REVIEW"?T.gold:T.ghost;
-                      return <span key={st} style={{ fontSize:9, color:c, background:c+"18", border:`1px solid ${c}33`, borderRadius:2, padding:"1px 6px", fontFamily:mono }}>{count} {st}</span>;
-                    })}
-                  </div>
-                </div>
-                {isOpen && (
-                  <div style={{ border:`1px solid ${T.line}`, borderTop:"none", borderRadius:"0 0 8px 8px", overflow:"hidden" }}>
-                    {sessScripts.map((s, idx) => {
-                      const color = pillarColor[s.pillar] || T.gold;
-                      const bg = pillarBg[s.pillar] || T.goldBg;
-                      return (
-                        <div key={s.id}
-                          style={{ display:"flex", alignItems:"center", gap:12, padding:"12px 16px", borderTop:idx>0?`1px solid ${T.line}`:"none", background:T.lift, cursor:"pointer" }}
-                          onClick={()=>setEditScript(s)}
-                          onMouseEnter={e=>e.currentTarget.style.background=T.surface}
-                          onMouseLeave={e=>e.currentTarget.style.background=T.lift}>
-                          <div style={{ width:3, height:32, background:color, borderRadius:99, flexShrink:0 }}/>
-                          <div style={{ flex:1, minWidth:0 }}>
-                            <div style={{ fontSize:13, fontWeight:600, color:T.ink, fontFamily:sans, marginBottom:3, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{s.title}</div>
-                            <div style={{ fontSize:11, color:T.dim, fontFamily:sans, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{s.hook||"No hook yet…"}</div>
-                          </div>
-                          <span style={{ fontSize:9, fontWeight:700, color, background:bg, border:`1px solid ${color}33`, borderRadius:2, padding:"2px 7px", fontFamily:mono, letterSpacing:"0.08em", flexShrink:0 }}>{s.pillar}</span>
-                          <span style={{ fontSize:9, color:s.status==="APPROVED"?T.conv:T.dim, background:T.lift, border:`1px solid ${T.line}`, borderRadius:2, padding:"2px 7px", fontFamily:mono, flexShrink:0 }}>{s.status}</span>
-                        </div>
-                      );
-                    })}
-                    <div style={{ padding:"10px 16px", borderTop:`1px solid ${T.line}`, background:T.surface }}>
-                      <button onClick={()=>{ const s={id:Date.now(),title:"New Script",pillar:"REACH",status:"DRAFT",session,hook:"",altHooks:[],body:"",cta:"",duration:"~30s"}; setScripts(p=>[...p,s]); setEditScript(s); }}
-                        style={{ fontSize:11, color:T.dim, background:"none", border:`1px dashed ${T.line}`, borderRadius:4, padding:"6px 14px", cursor:"pointer", fontFamily:sans }}>
-                        + Add script to {session}
-                      </button>
-                    </div>
-                  </div>
-                )}
+          <div style={{ border:`1px solid ${T.line}`, borderRadius:10, overflow:"hidden" }}>
+            {sessScripts.length===0 ? (
+              <div style={{ padding:"48px 20px", textAlign:"center", color:T.ghost, fontFamily:sans, fontSize:13 }}>
+                No scripts here yet.
               </div>
-            );
-          })}
-          {sessions.length===0 && (
-            <div style={{ textAlign:"center", padding:"60px 20px", color:T.ghost, fontFamily:sans, fontSize:13 }}>
-              No scripts yet. Use a template or add one manually.
+            ) : (
+              sessScripts.map((s, idx) => {
+                const color = pillarColor[s.pillar] || T.gold;
+                const bg = pillarBg[s.pillar] || T.goldBg;
+                const avatar = avatars?.find(a=>a.id===s.avatarId);
+                return (
+                  <div key={s.id}
+                    style={{ display:"flex", alignItems:"center", gap:12, padding:"13px 16px", borderTop:idx>0?`1px solid ${T.line}`:"none", background:T.lift, cursor:"pointer" }}
+                    onClick={()=>setEditScript(s)}
+                    onMouseEnter={e=>e.currentTarget.style.background=T.surface}
+                    onMouseLeave={e=>e.currentTarget.style.background=T.lift}>
+                    <div style={{ width:3, height:34, background:color, borderRadius:99, flexShrink:0 }}/>
+                    <div style={{ flex:1, minWidth:0 }}>
+                      <div style={{ fontSize:13, fontWeight:600, color:T.ink, fontFamily:sans, marginBottom:3, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{s.title}</div>
+                      <div style={{ fontSize:11, color:T.dim, fontFamily:sans, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{s.hook||"No hook yet…"}</div>
+                    </div>
+                    {avatar && (
+                      <div style={{ display:"flex", alignItems:"center", gap:5, flexShrink:0 }}>
+                        <div style={{ width:7, height:7, borderRadius:"50%", background:avatar.color||T.gold }}/>
+                        <span style={{ fontSize:10, color:T.dim, fontFamily:mono }}>{avatar.name}</span>
+                      </div>
+                    )}
+                    <span style={{ fontSize:9, fontWeight:700, color, background:bg, border:`1px solid ${color}33`, borderRadius:2, padding:"2px 7px", fontFamily:mono, letterSpacing:"0.08em", flexShrink:0 }}>{s.pillar}</span>
+                    <span style={{ fontSize:9, color:s.status==="APPROVED"?T.conv:s.status==="REVIEW"?T.gold:T.ghost, background:T.surface, border:`1px solid ${T.line}`, borderRadius:2, padding:"2px 7px", fontFamily:mono, flexShrink:0 }}>{s.status}</span>
+                  </div>
+                );
+              })
+            )}
+            <div style={{ padding:"10px 16px", borderTop:sessScripts.length>0?`1px solid ${T.line}`:"none", background:T.surface }}>
+              <button onClick={()=>{ setShowScriptPicker(true); setPickerShowTemplates(false); }}
+                style={{ fontSize:11, color:T.dim, background:"none", border:`1px dashed ${T.line}`, borderRadius:4, padding:"6px 14px", cursor:"pointer", fontFamily:sans }}>
+                + Add script to {activeSession}
+              </button>
             </div>
-          )}
+          </div>
         </div>
       </div>
 
-      {/* Script editor drawer */}
       {editScript && (
         <ScriptEditorDrawer
           script={editScript}
@@ -3923,6 +4140,197 @@ function ContentTab({ scripts, setScripts, avatars = INIT_AVATARS, doctors = nul
           avatars={avatars}
         />
       )}
+
+      {/* ── SCRIPT PICKER MODAL ── */}
+      {showScriptPicker && (
+        <div style={{ position:"fixed", inset:0, background:"#00000099", zIndex:300, display:"flex", alignItems:"center", justifyContent:"center" }}>
+          {!pickerShowTemplates ? (
+            /* Choice screen */
+            <div style={{ background:T.surface, borderRadius:16, padding:"32px", width:420, border:`1px solid ${T.line}`, boxShadow:"0 24px 64px #0008" }}>
+              <div style={{ fontSize:16, fontWeight:700, color:T.ink, fontFamily:sans, marginBottom:4 }}>New Script</div>
+              <div style={{ fontSize:12, color:T.dim, fontFamily:sans, marginBottom:24 }}>How do you want to start?</div>
+              <div style={{ display:"flex", flexDirection:"column", gap:10, marginBottom:16 }}>
+                <button onClick={()=>{ const s={id:Date.now(),title:"New Script",pillar:"REACH",status:"DRAFT",session:activeSession,hook:"",altHooks:[],body:"",cta:"",duration:"~30s"}; setScripts(p=>[...p,s]); setEditScript(s); setShowScriptPicker(false); }}
+                  style={{ padding:"18px 20px", background:T.gold+"22", border:`1px solid ${T.goldLine}`, borderRadius:10, color:T.ink, cursor:"pointer", fontFamily:sans, textAlign:"left" }}>
+                  <div style={{ fontSize:13, fontWeight:700, color:T.gold, marginBottom:4 }}>✦ Start from scratch</div>
+                  <div style={{ fontSize:11, color:T.dim }}>Blank script — you build the structure</div>
+                </button>
+                <button onClick={()=>setPickerShowTemplates(true)}
+                  style={{ padding:"18px 20px", background:T.lift, border:`1px solid ${T.line}`, borderRadius:10, color:T.ink, cursor:"pointer", fontFamily:sans, textAlign:"left" }}>
+                  <div style={{ fontSize:13, fontWeight:700, color:T.ink, marginBottom:4 }}>⊞ Use a template</div>
+                  <div style={{ fontSize:11, color:T.dim }}>Start with a proven proven format</div>
+                </button>
+              </div>
+              <button onClick={()=>{ setShowScriptPicker(false); setPickerShowTemplates(false); }}
+                style={{ width:"100%", padding:"9px", background:"none", border:`1px solid ${T.line}`, borderRadius:7, color:T.ghost, fontSize:12, cursor:"pointer", fontFamily:sans }}>Cancel</button>
+            </div>
+          ) : (
+            /* Template picker screen */
+            <div style={{ background:T.surface, borderRadius:16, width:"min(92vw,820px)", height:"80vh", display:"flex", flexDirection:"column", border:`1px solid ${T.line}`, boxShadow:"0 24px 64px #0008", overflow:"hidden" }}>
+              <div style={{ padding:"14px 20px", borderBottom:`1px solid ${T.line}`, display:"flex", alignItems:"center", gap:10, flexShrink:0 }}>
+                <button onClick={()=>setPickerShowTemplates(false)}
+                  style={{ background:"none", border:"none", color:T.dim, cursor:"pointer", display:"flex", alignItems:"center", gap:5, fontSize:12, fontFamily:sans }}>
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 12H5"/><path d="M12 19l-7-7 7-7"/></svg>
+                  Back
+                </button>
+                <span style={{ fontSize:14, fontWeight:700, color:T.ink, fontFamily:sans, flex:1 }}>Choose a Template</span>
+                <button onClick={()=>{ setShowScriptPicker(false); setPickerShowTemplates(false); }}
+                  style={{ background:"none", border:"none", color:T.ghost, cursor:"pointer", fontSize:20, lineHeight:1, fontFamily:sans }}>×</button>
+              </div>
+              <div style={{ flex:1, overflow:"hidden", display:"flex" }}>
+                <TemplatesView
+                  onBack={()=>setPickerShowTemplates(false)}
+                  onUse={(tmpl)=>{ handleUseTemplate(tmpl); setShowScriptPicker(false); setPickerShowTemplates(false); }}
+                />
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function IdeasTab({ ideas, setIdeas }) {
+  const mono = "'DM Mono', monospace";
+  const sans = "'DM Sans', sans-serif";
+  const [pillar, setPillar] = useState("ALL");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [showNew, setShowNew] = useState(false);
+  const [newIdea, setNewIdea] = useState({ title:"", desc:"", pillar:"AUTHORITY" });
+  const statusColors = { idea:T.dim, approved:T.conv, "in-progress":T.gold, done:T.ghost };
+  const statusBg = { idea:T.lift, approved:T.convBg, "in-progress":T.goldBg, done:T.lift };
+
+  const filtered = ideas.filter(i => {
+    const matchPillar = pillar==="ALL" || i.pillar===pillar;
+    const matchStatus = statusFilter==="all" || i.status===statusFilter;
+    return matchPillar && matchStatus;
+  });
+
+  const addIdea = () => {
+    if (!newIdea.title.trim()) return;
+    setIdeas(p => [...p, { id:Date.now(), ...newIdea, status:"idea", submittedBy:"agency", upvotes:0 }]);
+    setNewIdea({ title:"", desc:"", pillar:"AUTHORITY" });
+    setShowNew(false);
+  };
+
+  const upvote = (id) => setIdeas(p => p.map(i => i.id===id ? { ...i, upvotes:(i.upvotes||0)+1 } : i));
+
+  const cycleStatus = (id) => {
+    const cycle = ["idea","approved","in-progress","done"];
+    setIdeas(p => p.map(i => {
+      if(i.id!==id) return i;
+      const next = cycle[(cycle.indexOf(i.status)+1) % cycle.length];
+      return { ...i, status: next };
+    }));
+  };
+
+  return (
+    <div style={{ flex:1, display:"flex", flexDirection:"column", overflow:"hidden" }}>
+      {/* Header */}
+      <div style={{ padding:"14px 24px", borderBottom:`1px solid ${T.line}`, background:T.surface, display:"flex", alignItems:"center", gap:12, flexShrink:0 }}>
+        <div style={{ flex:1 }}>
+          <div style={{ fontSize:9, letterSpacing:"0.14em", color:T.dim, fontFamily:mono, marginBottom:2 }}>COLLABORATIVE IDEAS BOARD</div>
+          <div style={{ fontSize:15, fontWeight:700, color:T.ink, fontFamily:sans }}>{ideas.length} ideas</div>
+        </div>
+        <button onClick={()=>setShowNew(p=>!p)}
+          style={{ fontSize:11, fontWeight:700, color:"#fff", background:"#34d399", border:"none", borderRadius:5, padding:"7px 16px", cursor:"pointer", fontFamily:mono }}>
+          + New Idea
+        </button>
+      </div>
+
+      {/* Pillar tabs */}
+      <div style={{ display:"flex", gap:0, borderBottom:`1px solid ${T.line}`, background:T.surface, flexShrink:0, alignItems:"center", padding:"0 16px" }}>
+        {["ALL","AUTHORITY","CONVERSION","REACH"].map(p => {
+          const c = p==="AUTHORITY"?T.auth:p==="CONVERSION"?T.conv:p==="REACH"?T.reach:T.gold;
+          const active = pillar===p;
+          return (
+            <button key={p} onClick={()=>setPillar(p)}
+              style={{ padding:"10px 16px", fontSize:11, fontWeight:active?700:500, color:active?c:T.dim, background:"transparent", border:"none", borderBottom:`2px solid ${active?c:"transparent"}`, cursor:"pointer", fontFamily:mono, letterSpacing:"0.06em" }}>
+              {p}
+            </button>
+          );
+        })}
+        <div style={{ flex:1 }}/>
+        {["all","idea","approved","in-progress","done"].map(s => (
+          <button key={s} onClick={()=>setStatusFilter(s)}
+            style={{ fontSize:10, color:statusFilter===s?T.ink:T.ghost, background:statusFilter===s?T.lift:"transparent", border:`1px solid ${statusFilter===s?T.line:"transparent"}`, borderRadius:4, padding:"4px 10px", cursor:"pointer", fontFamily:mono, letterSpacing:"0.04em", marginLeft:4 }}>
+            {s.toUpperCase()}
+          </button>
+        ))}
+      </div>
+
+      {/* New idea form */}
+      {showNew && (
+        <div style={{ padding:"16px 24px", borderBottom:`1px solid ${T.line}`, background:T.raised, flexShrink:0 }}>
+          <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10, marginBottom:10 }}>
+            <div>
+              <div style={{ fontSize:9, color:T.dim, fontFamily:mono, marginBottom:4 }}>TITLE</div>
+              <input value={newIdea.title} onChange={e=>setNewIdea(p=>({...p,title:e.target.value}))}
+                placeholder="What's the idea?"
+                style={{ width:"100%", background:T.lift, border:`1px solid ${T.line}`, borderRadius:4, padding:"7px 10px", color:T.ink, fontSize:12, outline:"none", fontFamily:sans, boxSizing:"border-box" }}/>
+            </div>
+            <div>
+              <div style={{ fontSize:9, color:T.dim, fontFamily:mono, marginBottom:4 }}>PILLAR</div>
+              <select value={newIdea.pillar} onChange={e=>setNewIdea(p=>({...p,pillar:e.target.value}))}
+                style={{ width:"100%", background:T.lift, border:`1px solid ${T.line}`, borderRadius:4, padding:"7px 10px", color:T.ink, fontSize:12, outline:"none", fontFamily:sans }}>
+                {["AUTHORITY","CONVERSION","REACH"].map(p=><option key={p}>{p}</option>)}
+              </select>
+            </div>
+          </div>
+          <div style={{ marginBottom:10 }}>
+            <div style={{ fontSize:9, color:T.dim, fontFamily:mono, marginBottom:4 }}>DESCRIPTION</div>
+            <textarea value={newIdea.desc} onChange={e=>setNewIdea(p=>({...p,desc:e.target.value}))} rows={2}
+              placeholder="Brief description of the concept…"
+              style={{ width:"100%", background:T.lift, border:`1px solid ${T.line}`, borderRadius:4, padding:"7px 10px", color:T.ink, fontSize:12, outline:"none", fontFamily:sans, resize:"vertical", boxSizing:"border-box" }}/>
+          </div>
+          <div style={{ display:"flex", gap:8 }}>
+            <button onClick={addIdea}
+              style={{ padding:"7px 18px", background:"#34d399", border:"none", borderRadius:5, color:"#fff", fontWeight:700, fontSize:11, cursor:"pointer", fontFamily:mono }}>Add Idea</button>
+            <button onClick={()=>setShowNew(false)}
+              style={{ padding:"7px 14px", background:"none", border:`1px solid ${T.line}`, borderRadius:5, color:T.dim, fontSize:11, cursor:"pointer", fontFamily:sans }}>Cancel</button>
+          </div>
+        </div>
+      )}
+
+      {/* Ideas grid */}
+      <div style={{ flex:1, overflowY:"auto", padding:"20px 24px" }}>
+        <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill, minmax(280px,1fr))", gap:14 }}>
+          {filtered.map(idea => {
+            const pc2 = PILLAR_CFG[idea.pillar] || PILLAR_CFG.AUTHORITY;
+            const sc = statusColors[idea.status] || T.dim;
+            const sb = statusBg[idea.status] || T.lift;
+            return (
+              <div key={idea.id} style={{ background:T.surface, border:`1px solid ${T.line}`, borderRadius:12, padding:"18px", display:"flex", flexDirection:"column", gap:10 }}>
+                <div style={{ display:"flex", alignItems:"flex-start", justifyContent:"space-between", gap:8 }}>
+                  <span style={{ fontSize:9, fontWeight:700, color:pc2.color, background:pc2.bg, border:`1px solid ${pc2.line}`, borderRadius:2, padding:"2px 7px", fontFamily:mono, letterSpacing:"0.1em", flexShrink:0 }}>{idea.pillar}</span>
+                  <button onClick={()=>cycleStatus(idea.id)}
+                    style={{ fontSize:9, color:sc, background:sb, border:`1px solid ${sc}33`, borderRadius:3, padding:"2px 8px", cursor:"pointer", fontFamily:mono, letterSpacing:"0.06em", flexShrink:0 }}>
+                    {idea.status.toUpperCase()}
+                  </button>
+                </div>
+                <div style={{ fontSize:13, fontWeight:700, color:T.ink, fontFamily:sans, lineHeight:1.4 }}>{idea.title}</div>
+                {idea.desc && <div style={{ fontSize:11, color:T.dim, fontFamily:sans, lineHeight:1.55 }}>{idea.desc}</div>}
+                <div style={{ display:"flex", alignItems:"center", gap:8, marginTop:"auto", paddingTop:4 }}>
+                  <span style={{ fontSize:9, color: idea.submittedBy==="client"?"#38bdf8":T.gold, background: idea.submittedBy==="client"?T.reachBg:T.goldBg, border:`1px solid ${idea.submittedBy==="client"?"#38bdf833":T.goldLine}`, borderRadius:2, padding:"2px 7px", fontFamily:mono, letterSpacing:"0.06em" }}>
+                    {idea.submittedBy==="client" ? "CLIENT" : "AGENCY"}
+                  </span>
+                  <div style={{ flex:1 }}/>
+                  <button onClick={()=>upvote(idea.id)}
+                    style={{ display:"flex", alignItems:"center", gap:5, fontSize:11, color:T.dim, background:"none", border:`1px solid ${T.line}`, borderRadius:4, padding:"4px 10px", cursor:"pointer", fontFamily:mono }}>
+                    ▲ {idea.upvotes||0}
+                  </button>
+                </div>
+              </div>
+            );
+          })}
+          {filtered.length===0 && (
+            <div style={{ gridColumn:"1/-1", textAlign:"center", padding:"60px 20px", color:T.ghost, fontFamily:sans, fontSize:13 }}>
+              No ideas match the current filters.
+            </div>
+          )}
+        </div>
+      </div>
     </div>
   );
 }
@@ -4089,87 +4497,383 @@ function TemplatesManager() {
   );
 }
 
-function ResourcesTab() {
+function ResourcesTab({ customTemplates, setCustomTemplates, hooksLibrary, setHooksLibrary }) {
   const mono = "'DM Mono', monospace";
   const sans = "'DM Sans', sans-serif";
-  const [resources, setResources] = useState(RESOURCES_DATA);
-  const [filter, setFilter] = useState("All");
-  const [adding, setAdding] = useState(false);
-  const [newR, setNewR] = useState({ ref:"", url:"", pillar:"AUTHORITY", platform:"IG Reels", niche:"", views:"", likes:"" });
+  const [sub, setSub] = useState("templates");
 
-  const filtered = filter==="All" ? resources : resources.filter(r=>r.pillar===filter);
+  // ── SHARED STATES ──
+  const [resources, setResources] = useState(RESOURCES_DATA);
+  const allTemplates = [...TEMPLATES_DATA_SEED, ...(customTemplates||[])];
+
+  // ─── TEMPLATES sub-tab state ───
+  const [tmplFilter, setTmplFilter] = useState("All");
+  const [editingTmpl, setEditingTmpl] = useState(null); // null=list, {}=new, {id}=editing
+  const [tmplDraft, setTmplDraft] = useState({ name:"", desc:"", pillar:"AUTHORITY", duration:"~45s", fields:[] });
+
+  const startNewTmpl = () => {
+    setTmplDraft({ name:"", desc:"", pillar:"AUTHORITY", duration:"~45s", fields:[{ id:"f1", label:"Hook", hint:"Your opening line", type:"textarea" }] });
+    setEditingTmpl("new");
+  };
+
+  const addField = () => {
+    setTmplDraft(p => ({ ...p, fields:[...p.fields, { id:"f"+(p.fields.length+1)+Date.now(), label:"", hint:"", type:"textarea" }] }));
+  };
+
+  const removeField = (fid) => setTmplDraft(p => ({ ...p, fields: p.fields.filter(f=>f.id!==fid) }));
+
+  const saveTmpl = () => {
+    if (!tmplDraft.name.trim()) return;
+    setCustomTemplates(p => [...(p||[]), { ...tmplDraft, id:Date.now() }]);
+    setEditingTmpl(null);
+  };
+
+  // ─── HOOKS sub-tab state ───
+  const [hookFilter, setHookFilter] = useState("All");
+  const [hookTypeFilter, setHookTypeFilter] = useState("All");
+  const [addingHook, setAddingHook] = useState(false);
+  const [newHook, setNewHook] = useState({ text:"", pillar:"AUTHORITY", type:"CONTRARIAN", niche:"", strength:8 });
+
+  const hookPc = { AUTHORITY:T.auth, CONVERSION:T.conv, REACH:T.reach };
+  const filteredHooks = (hooksLibrary||HOOKS_DATA).filter(h => {
+    const mp = hookFilter==="All" || h.pillar===hookFilter;
+    const mt = hookTypeFilter==="All" || h.type===hookTypeFilter;
+    return mp && mt;
+  });
+
+  // ─── VAULT sub-tab state ───
+  const [vaultFilter, setVaultFilter] = useState("All");
+  const [addingVault, setAddingVault] = useState(false);
+  const [newR, setNewR] = useState({ ref:"", url:"", pillar:"AUTHORITY", platform:"IG Reels", niche:"", views:"", likes:"" });
+  const filteredVault = vaultFilter==="All" ? resources : resources.filter(r=>r.pillar===vaultFilter);
   const pc = { AUTHORITY:T.auth, CONVERSION:T.conv, REACH:T.reach };
+
+  const subTabs = [
+    { id:"templates", label:"Templates" },
+    { id:"hooks",     label:"Hooks Library" },
+    { id:"vault",     label:"Content Vault" },
+  ];
 
   return (
     <div style={{ flex:1, display:"flex", flexDirection:"column", overflow:"hidden" }}>
-      <div style={{ padding:"14px 24px", borderBottom:`1px solid ${T.line}`, background:T.surface, display:"flex", alignItems:"center", gap:12, flexShrink:0 }}>
-        <div style={{ flex:1 }}>
-          <div style={{ fontSize:9, letterSpacing:"0.14em", color:T.dim, fontFamily:mono, marginBottom:2 }}>INSPIRATION LIBRARY</div>
-          <div style={{ fontSize:15, fontWeight:700, color:T.ink, fontFamily:sans }}>Resources</div>
-        </div>
-        <button onClick={()=>setAdding(p=>!p)}
-          style={{ fontSize:11, fontWeight:700, color:"#fff", background:T.gold, border:"none", borderRadius:5, padding:"7px 16px", cursor:"pointer", fontFamily:mono }}>+ Add</button>
-      </div>
-      <div style={{ display:"flex", gap:0, borderBottom:`1px solid ${T.line}`, background:T.surface, flexShrink:0 }}>
-        {["All","AUTHORITY","CONVERSION","REACH"].map(p => (
-          <button key={p} onClick={()=>setFilter(p)}
-            style={{ padding:"10px 18px", fontSize:11, fontWeight:filter===p?700:500, color:filter===p?T.gold:T.dim, background:"transparent", border:"none", borderBottom:`2px solid ${filter===p?T.gold:"transparent"}`, cursor:"pointer", fontFamily:mono, letterSpacing:"0.06em" }}>
-            {p}
+      {/* Sub-nav */}
+      <div style={{ display:"flex", borderBottom:`1px solid ${T.line}`, background:T.surface, flexShrink:0 }}>
+        {subTabs.map(s => (
+          <button key={s.id} onClick={()=>setSub(s.id)}
+            style={{ padding:"0 22px", height:46, fontSize:12, fontWeight:sub===s.id?700:500, color:sub===s.id?T.gold:T.dim, background:"transparent", border:"none", borderBottom:`2px solid ${sub===s.id?T.gold:"transparent"}`, cursor:"pointer", fontFamily:sans, letterSpacing:"0.03em" }}>
+            {s.label}
           </button>
         ))}
       </div>
-      {adding && (
-        <div style={{ padding:"16px 24px", borderBottom:`1px solid ${T.line}`, background:T.surface, display:"grid", gridTemplateColumns:"repeat(3,1fr)", gap:10, flexShrink:0 }}>
-          {[["Creator Handle","ref"],["URL","url"],["Platform","platform"],["Niche","niche"],["Views","views"],["Likes","likes"]].map(([label,field]) => (
-            <div key={field}>
-              <div style={{ fontSize:9, color:T.dim, fontFamily:mono, marginBottom:4 }}>{label.toUpperCase()}</div>
-              <input value={newR[field]} onChange={e=>setNewR(p=>({...p,[field]:e.target.value}))}
-                style={{ width:"100%", background:T.lift, border:`1px solid ${T.line}`, borderRadius:4, padding:"7px 10px", color:T.ink, fontSize:12, outline:"none", fontFamily:sans, boxSizing:"border-box" }}/>
+
+      {/* ═══ TEMPLATES ═══ */}
+      {sub==="templates" && (
+        <div style={{ flex:1, display:"flex", overflow:"hidden" }}>
+          {/* Left: list */}
+          <div style={{ width:300, borderRight:`1px solid ${T.line}`, display:"flex", flexDirection:"column", overflow:"hidden" }}>
+            <div style={{ padding:"12px 16px", borderBottom:`1px solid ${T.line}`, background:T.surface, display:"flex", alignItems:"center", gap:8, flexShrink:0 }}>
+              <span style={{ fontSize:12, fontWeight:700, color:T.ink, fontFamily:sans, flex:1 }}>{allTemplates.length} templates</span>
+              <button onClick={startNewTmpl}
+                style={{ fontSize:10, fontWeight:700, color:"#fff", background:T.gold, border:"none", borderRadius:4, padding:"5px 12px", cursor:"pointer", fontFamily:mono }}>+ New</button>
             </div>
-          ))}
-          <div>
-            <div style={{ fontSize:9, color:T.dim, fontFamily:mono, marginBottom:4 }}>PILLAR</div>
-            <select value={newR.pillar} onChange={e=>setNewR(p=>({...p,pillar:e.target.value}))}
-              style={{ width:"100%", background:T.lift, border:`1px solid ${T.line}`, borderRadius:4, padding:"7px 10px", color:T.ink, fontSize:12, outline:"none", fontFamily:sans }}>
-              {["AUTHORITY","CONVERSION","REACH"].map(p=><option key={p}>{p}</option>)}
-            </select>
+            <div style={{ display:"flex", borderBottom:`1px solid ${T.line}`, background:T.surface, flexShrink:0 }}>
+              {["All","AUTHORITY","CONVERSION","REACH"].map(p => (
+                <button key={p} onClick={()=>setTmplFilter(p)}
+                  style={{ flex:1, padding:"8px 4px", fontSize:9, fontWeight:tmplFilter===p?700:500, color:tmplFilter===p?T.gold:T.ghost, background:"transparent", border:"none", borderBottom:`2px solid ${tmplFilter===p?T.gold:"transparent"}`, cursor:"pointer", fontFamily:mono }}>
+                  {p==="All"?"ALL":p.slice(0,4)}
+                </button>
+              ))}
+            </div>
+            <div style={{ flex:1, overflowY:"auto" }}>
+              {allTemplates.filter(t=>tmplFilter==="All"||t.pillar===tmplFilter).map(tmpl => {
+                const c = pc[tmpl.pillar]||T.gold;
+                const isCustom = !!(customTemplates||[]).find(ct=>ct.id===tmpl.id);
+                return (
+                  <div key={tmpl.id}
+                    style={{ padding:"12px 16px", borderBottom:`1px solid ${T.line}`, background:editingTmpl===tmpl.id?T.raised:T.lift, cursor:"pointer" }}
+                    onClick={()=>setEditingTmpl(editingTmpl===tmpl.id?null:tmpl.id)}
+                    onMouseEnter={e=>e.currentTarget.style.background=T.surface}
+                    onMouseLeave={e=>e.currentTarget.style.background=editingTmpl===tmpl.id?T.raised:T.lift}>
+                    <div style={{ display:"flex", alignItems:"center", gap:6, marginBottom:4 }}>
+                      <span style={{ fontSize:9, color:c, background:c+"18", border:`1px solid ${c}33`, borderRadius:2, padding:"1px 6px", fontFamily:mono }}>{tmpl.pillar}</span>
+                      {isCustom && <span style={{ fontSize:9, color:T.gold, background:T.goldBg, border:`1px solid ${T.goldLine}`, borderRadius:2, padding:"1px 6px", fontFamily:mono }}>CUSTOM</span>}
+                      <span style={{ fontSize:9, color:T.ghost, fontFamily:mono, marginLeft:"auto" }}>{tmpl.fields?.length||0} fields</span>
+                    </div>
+                    <div style={{ fontSize:12, fontWeight:600, color:T.ink, fontFamily:sans }}>{tmpl.name}</div>
+                  </div>
+                );
+              })}
+            </div>
           </div>
-          <div style={{ display:"flex", alignItems:"flex-end", gap:8 }}>
-            <button onClick={()=>{ setResources(p=>[...p,{...newR, id:Date.now()}]); setAdding(false); setNewR({ref:"",url:"",pillar:"AUTHORITY",platform:"IG Reels",niche:"",views:"",likes:""}); }}
-              style={{ flex:1, padding:"8px", background:T.gold, border:"none", borderRadius:4, color:"#fff", fontWeight:700, fontSize:11, cursor:"pointer", fontFamily:mono }}>Save</button>
-            <button onClick={()=>setAdding(false)}
-              style={{ flex:1, padding:"8px", background:"none", border:`1px solid ${T.line}`, borderRadius:4, color:T.dim, fontSize:11, cursor:"pointer", fontFamily:sans }}>Cancel</button>
+
+          {/* Right: builder/viewer */}
+          <div style={{ flex:1, display:"flex", flexDirection:"column", overflow:"hidden" }}>
+            {!editingTmpl ? (
+              <div style={{ flex:1, display:"flex", alignItems:"center", justifyContent:"center", color:T.ghost, fontFamily:sans, fontSize:13 }}>
+                Select a template or create a new one
+              </div>
+            ) : editingTmpl==="new" ? (
+              <div style={{ flex:1, overflowY:"auto", padding:"24px" }}>
+                <div style={{ fontSize:15, fontWeight:700, color:T.ink, fontFamily:sans, marginBottom:20 }}>New Template</div>
+                {[["Name","name","input"],["Description","desc","textarea"],["Duration","duration","input"]].map(([label,field,type]) => (
+                  <div key={field} style={{ marginBottom:14 }}>
+                    <div style={{ fontSize:9, color:T.dim, fontFamily:mono, marginBottom:4 }}>{label.toUpperCase()}</div>
+                    {type==="textarea" ? (
+                      <textarea value={tmplDraft[field]} onChange={e=>setTmplDraft(p=>({...p,[field]:e.target.value}))} rows={2}
+                        style={{ width:"100%", background:T.lift, border:`1px solid ${T.line}`, borderRadius:4, padding:"7px 10px", color:T.ink, fontSize:12, outline:"none", fontFamily:sans, resize:"vertical", boxSizing:"border-box" }}/>
+                    ) : (
+                      <input value={tmplDraft[field]} onChange={e=>setTmplDraft(p=>({...p,[field]:e.target.value}))}
+                        style={{ width:"100%", background:T.lift, border:`1px solid ${T.line}`, borderRadius:4, padding:"7px 10px", color:T.ink, fontSize:12, outline:"none", fontFamily:sans, boxSizing:"border-box" }}/>
+                    )}
+                  </div>
+                ))}
+                <div style={{ marginBottom:14 }}>
+                  <div style={{ fontSize:9, color:T.dim, fontFamily:mono, marginBottom:4 }}>PILLAR</div>
+                  <select value={tmplDraft.pillar} onChange={e=>setTmplDraft(p=>({...p,pillar:e.target.value}))}
+                    style={{ width:"100%", background:T.lift, border:`1px solid ${T.line}`, borderRadius:4, padding:"7px 10px", color:T.ink, fontSize:12, outline:"none", fontFamily:sans }}>
+                    {["AUTHORITY","CONVERSION","REACH"].map(p=><option key={p}>{p}</option>)}
+                  </select>
+                </div>
+                {/* Dynamic fields */}
+                <div style={{ marginBottom:14 }}>
+                  <div style={{ display:"flex", alignItems:"center", marginBottom:10 }}>
+                    <div style={{ fontSize:9, color:T.dim, fontFamily:mono, flex:1 }}>FIELDS</div>
+                    <button onClick={addField}
+                      style={{ fontSize:10, color:T.gold, background:"transparent", border:`1px solid ${T.goldLine}`, borderRadius:3, padding:"3px 10px", cursor:"pointer", fontFamily:mono }}>+ Add Field</button>
+                  </div>
+                  {tmplDraft.fields.map((f, fi) => (
+                    <div key={f.id} style={{ background:T.lift, border:`1px solid ${T.line}`, borderRadius:7, padding:"12px", marginBottom:8 }}>
+                      <div style={{ display:"flex", gap:8, marginBottom:8 }}>
+                        <input value={f.label} placeholder="Label" onChange={e=>setTmplDraft(p=>({...p,fields:p.fields.map(x=>x.id===f.id?{...x,label:e.target.value}:x)}))}
+                          style={{ flex:1, background:T.surface, border:`1px solid ${T.line}`, borderRadius:4, padding:"6px 9px", color:T.ink, fontSize:11, outline:"none", fontFamily:sans }}/>
+                        <select value={f.type} onChange={e=>setTmplDraft(p=>({...p,fields:p.fields.map(x=>x.id===f.id?{...x,type:e.target.value}:x)}))}
+                          style={{ background:T.surface, border:`1px solid ${T.line}`, borderRadius:4, padding:"6px 9px", color:T.ink, fontSize:11, outline:"none", fontFamily:mono }}>
+                          {["text","textarea","list"].map(t=><option key={t}>{t}</option>)}
+                        </select>
+                        <button onClick={()=>removeField(f.id)}
+                          style={{ background:"none", border:`1px solid ${T.line}`, borderRadius:4, color:T.ghost, cursor:"pointer", padding:"4px 9px", fontSize:13 }}>×</button>
+                      </div>
+                      <input value={f.hint} placeholder="Hint / placeholder text" onChange={e=>setTmplDraft(p=>({...p,fields:p.fields.map(x=>x.id===f.id?{...x,hint:e.target.value}:x)}))}
+                        style={{ width:"100%", background:T.surface, border:`1px solid ${T.line}`, borderRadius:4, padding:"6px 9px", color:T.ink, fontSize:11, outline:"none", fontFamily:sans, boxSizing:"border-box" }}/>
+                    </div>
+                  ))}
+                </div>
+                <div style={{ display:"flex", gap:8 }}>
+                  <button onClick={saveTmpl}
+                    style={{ padding:"8px 20px", background:T.gold, border:"none", borderRadius:5, color:"#fff", fontWeight:700, fontSize:12, cursor:"pointer", fontFamily:mono }}>Save Template</button>
+                  <button onClick={()=>setEditingTmpl(null)}
+                    style={{ padding:"8px 14px", background:"none", border:`1px solid ${T.line}`, borderRadius:5, color:T.dim, fontSize:12, cursor:"pointer", fontFamily:sans }}>Cancel</button>
+                </div>
+              </div>
+            ) : (
+              // View existing template fields
+              <div style={{ flex:1, overflowY:"auto", padding:"24px" }}>
+                {(() => {
+                  const tmpl = allTemplates.find(t=>t.id===editingTmpl);
+                  if(!tmpl) return null;
+                  const c = pc[tmpl.pillar]||T.gold;
+                  return (
+                    <>
+                      <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:20 }}>
+                        <span style={{ fontSize:9, color:c, background:c+"18", border:`1px solid ${c}33`, borderRadius:2, padding:"2px 7px", fontFamily:mono }}>{tmpl.pillar}</span>
+                        <span style={{ fontSize:15, fontWeight:700, color:T.ink, fontFamily:sans, flex:1 }}>{tmpl.name}</span>
+                        <span style={{ fontSize:10, color:T.ghost, fontFamily:mono }}>{tmpl.duration}</span>
+                      </div>
+                      {tmpl.desc && <div style={{ fontSize:12, color:T.dim, fontFamily:sans, lineHeight:1.5, marginBottom:16 }}>{tmpl.desc}</div>}
+                      {(tmpl.fields||[]).map((f,fi) => (
+                        <div key={f.id} style={{ marginBottom:14 }}>
+                          <div style={{ fontSize:9, color:T.dim, fontFamily:mono, marginBottom:4 }}>{f.label?.toUpperCase()} {f.hint && <span style={{ color:T.ghost, fontWeight:400 }}>— {f.hint}</span>}</div>
+                          {f.type==="textarea" ? (
+                            <textarea placeholder={f.hint} rows={2} style={{ width:"100%", background:T.lift, border:`1px solid ${T.line}`, borderRadius:4, padding:"7px 10px", color:T.ink, fontSize:12, outline:"none", fontFamily:sans, resize:"vertical", boxSizing:"border-box" }}/>
+                          ) : (
+                            <input placeholder={f.hint} style={{ width:"100%", background:T.lift, border:`1px solid ${T.line}`, borderRadius:4, padding:"7px 10px", color:T.ink, fontSize:12, outline:"none", fontFamily:sans, boxSizing:"border-box" }}/>
+                          )}
+                        </div>
+                      ))}
+                    </>
+                  );
+                })()}
+              </div>
+            )}
           </div>
         </div>
       )}
-      <div style={{ flex:1, overflowY:"auto", padding:"20px 24px" }}>
-        <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(280px,1fr))", gap:14 }}>
-          {filtered.map(r => {
-            const color = pc[r.pillar]||T.gold;
-            return (
-              <div key={r.id} style={{ background:T.surface, border:`1px solid ${T.line}`, borderRadius:10, padding:"16px", display:"flex", flexDirection:"column", gap:10 }}>
-                <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start" }}>
-                  <div>
-                    <div style={{ fontSize:13, fontWeight:700, color:T.ink, fontFamily:sans, marginBottom:3 }}>{r.ref}</div>
-                    <div style={{ fontSize:10, color:T.dim, fontFamily:sans }}>{r.platform} · {r.niche}</div>
-                  </div>
-                  <span style={{ fontSize:9, fontWeight:700, color, background:color+"18", border:`1px solid ${color}33`, borderRadius:2, padding:"2px 7px", fontFamily:mono, letterSpacing:"0.1em" }}>{r.pillar}</span>
-                </div>
-                <div style={{ display:"flex", gap:12 }}>
-                  <div style={{ fontSize:12, color:T.muted, fontFamily:mono }}>{r.views} views</div>
-                  <div style={{ fontSize:12, color:T.muted, fontFamily:mono }}>{r.likes} likes</div>
-                </div>
-                {r.url && (
-                  <a href={r.url} target="_blank" rel="noopener noreferrer"
-                    style={{ fontSize:11, color:T.gold, fontFamily:mono, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
-                    {r.url}
-                  </a>
-                )}
+
+      {/* ═══ HOOKS LIBRARY ═══ */}
+      {sub==="hooks" && (
+        <div style={{ flex:1, display:"flex", flexDirection:"column", overflow:"hidden" }}>
+          <div style={{ padding:"12px 24px", borderBottom:`1px solid ${T.line}`, background:T.surface, display:"flex", alignItems:"center", gap:8, flexShrink:0, flexWrap:"wrap" }}>
+            {["All","AUTHORITY","CONVERSION","REACH"].map(p => (
+              <button key={p} onClick={()=>setHookFilter(p)}
+                style={{ fontSize:10, fontWeight:hookFilter===p?700:500, color:hookFilter===p?T.gold:T.dim, background:hookFilter===p?T.goldBg:"transparent", border:`1px solid ${hookFilter===p?T.goldLine:"transparent"}`, borderRadius:4, padding:"4px 10px", cursor:"pointer", fontFamily:mono }}>
+                {p}
+              </button>
+            ))}
+            <div style={{ width:1, height:16, background:T.line }} />
+            {["All","CONTRARIAN","AUTHORITY","VALUE","PAIN","CURIOSITY"].map(t => (
+              <button key={t} onClick={()=>setHookTypeFilter(t)}
+                style={{ fontSize:10, fontWeight:hookTypeFilter===t?700:500, color:hookTypeFilter===t?T.gold:T.ghost, background:hookTypeFilter===t?T.goldBg:"transparent", border:`1px solid ${hookTypeFilter===t?T.goldLine:"transparent"}`, borderRadius:4, padding:"4px 10px", cursor:"pointer", fontFamily:mono }}>
+                {t}
+              </button>
+            ))}
+            <div style={{ flex:1 }}/>
+            <button onClick={()=>setAddingHook(p=>!p)}
+              style={{ fontSize:11, fontWeight:700, color:"#fff", background:T.gold, border:"none", borderRadius:5, padding:"6px 14px", cursor:"pointer", fontFamily:mono }}>
+              + Add Hook
+            </button>
+          </div>
+          {addingHook && (
+            <div style={{ padding:"14px 24px", borderBottom:`1px solid ${T.line}`, background:T.raised, display:"grid", gridTemplateColumns:"repeat(3,1fr)", gap:10, flexShrink:0 }}>
+              <div style={{ gridColumn:"1/-1" }}>
+                <div style={{ fontSize:9, color:T.dim, fontFamily:mono, marginBottom:4 }}>HOOK TEXT</div>
+                <textarea value={newHook.text} onChange={e=>setNewHook(p=>({...p,text:e.target.value}))} rows={2}
+                  style={{ width:"100%", background:T.lift, border:`1px solid ${T.line}`, borderRadius:4, padding:"7px 10px", color:T.ink, fontSize:12, outline:"none", fontFamily:sans, resize:"none", boxSizing:"border-box" }}/>
               </div>
-            );
-          })}
+              {[["Pillar","pillar","select",["AUTHORITY","CONVERSION","REACH"]],["Type","type","select",["CONTRARIAN","AUTHORITY","VALUE","PAIN","CURIOSITY"]],["Niche","niche","input",null]].map(([label,field,type,opts]) => (
+                <div key={field}>
+                  <div style={{ fontSize:9, color:T.dim, fontFamily:mono, marginBottom:4 }}>{label.toUpperCase()}</div>
+                  {type==="select" ? (
+                    <select value={newHook[field]} onChange={e=>setNewHook(p=>({...p,[field]:e.target.value}))}
+                      style={{ width:"100%", background:T.lift, border:`1px solid ${T.line}`, borderRadius:4, padding:"7px 10px", color:T.ink, fontSize:12, outline:"none", fontFamily:sans }}>
+                      {opts.map(o=><option key={o}>{o}</option>)}
+                    </select>
+                  ) : (
+                    <input value={newHook[field]} onChange={e=>setNewHook(p=>({...p,[field]:e.target.value}))}
+                      style={{ width:"100%", background:T.lift, border:`1px solid ${T.line}`, borderRadius:4, padding:"7px 10px", color:T.ink, fontSize:12, outline:"none", fontFamily:sans, boxSizing:"border-box" }}/>
+                  )}
+                </div>
+              ))}
+              <div>
+                <div style={{ fontSize:9, color:T.dim, fontFamily:mono, marginBottom:4 }}>STRENGTH (1-10)</div>
+                <input type="number" min={1} max={10} value={newHook.strength} onChange={e=>setNewHook(p=>({...p,strength:+e.target.value}))}
+                  style={{ width:"100%", background:T.lift, border:`1px solid ${T.line}`, borderRadius:4, padding:"7px 10px", color:T.ink, fontSize:12, outline:"none", fontFamily:mono, boxSizing:"border-box" }}/>
+              </div>
+              <div style={{ display:"flex", alignItems:"flex-end", gap:8 }}>
+                <button onClick={()=>{ setHooksLibrary(p=>[...(p||HOOKS_DATA),{...newHook,id:Date.now()}]); setAddingHook(false); setNewHook({text:"",pillar:"AUTHORITY",type:"CONTRARIAN",niche:"",strength:8}); }}
+                  style={{ flex:1, padding:"8px", background:T.gold, border:"none", borderRadius:4, color:"#fff", fontWeight:700, fontSize:11, cursor:"pointer", fontFamily:mono }}>Save</button>
+                <button onClick={()=>setAddingHook(false)}
+                  style={{ flex:1, padding:"8px", background:"none", border:`1px solid ${T.line}`, borderRadius:4, color:T.dim, fontSize:11, cursor:"pointer", fontFamily:sans }}>Cancel</button>
+              </div>
+            </div>
+          )}
+          <div style={{ flex:1, overflowY:"auto" }}>
+            <div style={{ border:`1px solid ${T.line}`, borderRadius:10, margin:"16px 24px", overflow:"hidden" }}>
+              {filteredHooks.map((h,i) => {
+                const hc = hookPc[h.pillar]||T.gold;
+                const tc = TYPE_CFG[h.type]||{ color:T.gold, bg:T.goldBg, line:T.goldLine };
+                return (
+                  <div key={h.id||i}
+                    style={{ display:"flex", alignItems:"center", gap:12, padding:"13px 16px", borderTop:i>0?`1px solid ${T.line}`:"none", background:T.lift }}
+                    onMouseEnter={e=>e.currentTarget.style.background=T.surface}
+                    onMouseLeave={e=>e.currentTarget.style.background=T.lift}>
+                    {/* Pillar + Type badges */}
+                    <div style={{ display:"flex", flexDirection:"column", gap:4, flexShrink:0, width:90 }}>
+                      <span style={{ fontSize:9, fontWeight:700, color:hc, background:hc+"18", border:`1px solid ${hc}33`, borderRadius:2, padding:"2px 7px", fontFamily:mono, textAlign:"center" }}>{h.pillar}</span>
+                      <span style={{ fontSize:9, color:tc.color, background:tc.bg, border:`1px solid ${tc.line}`, borderRadius:2, padding:"2px 7px", fontFamily:mono, textAlign:"center" }}>{h.type}</span>
+                    </div>
+                    {/* Hook text */}
+                    <div style={{ flex:1, fontSize:12, color:T.ink, fontFamily:sans, lineHeight:1.5 }}>{h.text}</div>
+                    {/* Niche tag */}
+                    {h.niche && <span style={{ fontSize:9, color:T.ghost, fontFamily:mono, flexShrink:0 }}>{h.niche}</span>}
+                    {/* Strength dots */}
+                    <div style={{ display:"flex", gap:2, flexShrink:0 }}>
+                      {Array.from({length:10}).map((_,j)=>(
+                        <div key={j} style={{ width:5, height:5, borderRadius:2, background:j<(h.strength||0)?tc.color:T.ghost+"33" }}/>
+                      ))}
+                    </div>
+                    {/* Copy */}
+                    <button onClick={()=>{ navigator.clipboard?.writeText(h.text); }}
+                      style={{ fontSize:10, color:T.dim, background:"none", border:`1px solid ${T.line}`, borderRadius:4, padding:"5px 12px", cursor:"pointer", fontFamily:mono, flexShrink:0 }}>
+                      Copy
+                    </button>
+                  </div>
+                );
+              })}
+              {filteredHooks.length===0 && (
+                <div style={{ textAlign:"center", padding:"48px", color:T.ghost, fontFamily:sans, fontSize:13 }}>No hooks match the current filters.</div>
+              )}
+            </div>
+          </div>
         </div>
-      </div>
+      )}
+
+      {/* ═══ CONTENT VAULT ═══ */}
+      {sub==="vault" && (
+        <div style={{ flex:1, display:"flex", flexDirection:"column", overflow:"hidden" }}>
+          <div style={{ padding:"12px 24px", borderBottom:`1px solid ${T.line}`, background:T.surface, display:"flex", alignItems:"center", gap:8, flexShrink:0 }}>
+            {["All","AUTHORITY","CONVERSION","REACH"].map(p => (
+              <button key={p} onClick={()=>setVaultFilter(p)}
+                style={{ fontSize:10, fontWeight:vaultFilter===p?700:500, color:vaultFilter===p?T.gold:T.dim, background:vaultFilter===p?T.goldBg:"transparent", border:`1px solid ${vaultFilter===p?T.goldLine:"transparent"}`, borderRadius:4, padding:"4px 10px", cursor:"pointer", fontFamily:mono }}>
+                {p}
+              </button>
+            ))}
+            <div style={{ flex:1 }}/>
+            <button onClick={()=>setAddingVault(p=>!p)}
+              style={{ fontSize:11, fontWeight:700, color:"#fff", background:T.gold, border:"none", borderRadius:5, padding:"6px 14px", cursor:"pointer", fontFamily:mono }}>+ Add</button>
+          </div>
+          {addingVault && (
+            <div style={{ padding:"16px 24px", borderBottom:`1px solid ${T.line}`, background:T.raised, display:"grid", gridTemplateColumns:"repeat(3,1fr)", gap:10, flexShrink:0 }}>
+              {[["Creator Handle","ref"],["URL","url"],["Platform","platform"],["Niche","niche"],["Views","views"],["Likes","likes"]].map(([label,field]) => (
+                <div key={field}>
+                  <div style={{ fontSize:9, color:T.dim, fontFamily:mono, marginBottom:4 }}>{label.toUpperCase()}</div>
+                  <input value={newR[field]} onChange={e=>setNewR(p=>({...p,[field]:e.target.value}))}
+                    style={{ width:"100%", background:T.lift, border:`1px solid ${T.line}`, borderRadius:4, padding:"7px 10px", color:T.ink, fontSize:12, outline:"none", fontFamily:sans, boxSizing:"border-box" }}/>
+                </div>
+              ))}
+              <div>
+                <div style={{ fontSize:9, color:T.dim, fontFamily:mono, marginBottom:4 }}>PILLAR</div>
+                <select value={newR.pillar} onChange={e=>setNewR(p=>({...p,pillar:e.target.value}))}
+                  style={{ width:"100%", background:T.lift, border:`1px solid ${T.line}`, borderRadius:4, padding:"7px 10px", color:T.ink, fontSize:12, outline:"none", fontFamily:sans }}>
+                  {["AUTHORITY","CONVERSION","REACH"].map(p=><option key={p}>{p}</option>)}
+                </select>
+              </div>
+              <div style={{ display:"flex", alignItems:"flex-end", gap:8 }}>
+                <button onClick={()=>{ setResources(p=>[...p,{...newR,id:Date.now()}]); setAddingVault(false); setNewR({ref:"",url:"",pillar:"AUTHORITY",platform:"IG Reels",niche:"",views:"",likes:""}); }}
+                  style={{ flex:1, padding:"8px", background:T.gold, border:"none", borderRadius:4, color:"#fff", fontWeight:700, fontSize:11, cursor:"pointer", fontFamily:mono }}>Save</button>
+                <button onClick={()=>setAddingVault(false)}
+                  style={{ flex:1, padding:"8px", background:"none", border:`1px solid ${T.line}`, borderRadius:4, color:T.dim, fontSize:11, cursor:"pointer", fontFamily:sans }}>Cancel</button>
+              </div>
+            </div>
+          )}
+          <div style={{ flex:1, overflowY:"auto" }}>
+            <div style={{ border:`1px solid ${T.line}`, borderRadius:10, margin:"16px 24px", overflow:"hidden" }}>
+              {filteredVault.map((r,i) => {
+                const color = pc[r.pillar]||T.gold;
+                return (
+                  <div key={r.id}
+                    style={{ display:"flex", alignItems:"center", gap:12, padding:"13px 16px", borderTop:i>0?`1px solid ${T.line}`:"none", background:T.lift }}
+                    onMouseEnter={e=>e.currentTarget.style.background=T.surface}
+                    onMouseLeave={e=>e.currentTarget.style.background=T.lift}>
+                    {/* Creator info */}
+                    <div style={{ flex:1, minWidth:0 }}>
+                      <div style={{ fontSize:13, fontWeight:700, color:T.ink, fontFamily:sans, marginBottom:2 }}>{r.ref}</div>
+                      <div style={{ fontSize:10, color:T.dim, fontFamily:sans }}>{r.platform}{r.niche ? ` · ${r.niche}` : ""}</div>
+                    </div>
+                    {/* Pillar badge */}
+                    <span style={{ fontSize:9, fontWeight:700, color, background:color+"18", border:`1px solid ${color}33`, borderRadius:2, padding:"2px 7px", fontFamily:mono, letterSpacing:"0.1em", flexShrink:0 }}>{r.pillar}</span>
+                    {/* Stats */}
+                    <div style={{ display:"flex", gap:10, flexShrink:0, minWidth:100 }}>
+                      {r.views && <span style={{ fontSize:11, color:T.ghost, fontFamily:mono }}>{r.views}v</span>}
+                      {r.likes && <span style={{ fontSize:11, color:T.ghost, fontFamily:mono }}>{r.likes}♡</span>}
+                    </div>
+                    {/* Link */}
+                    {r.url ? (
+                      <a href={r.url} target="_blank" rel="noopener noreferrer"
+                        style={{ fontSize:11, color:T.gold, fontFamily:mono, flexShrink:0, whiteSpace:"nowrap", display:"flex", alignItems:"center", gap:4 }}>
+                        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+                        Link
+                      </a>
+                    ) : <span style={{ width:42, flexShrink:0 }}/>}
+                  </div>
+                );
+              })}
+              {filteredVault.length===0 && (
+                <div style={{ textAlign:"center", padding:"48px", color:T.ghost, fontFamily:sans, fontSize:13 }}>No content in vault yet.</div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -4177,58 +4881,144 @@ function ResourcesTab() {
 function ProductionTab({ scripts: rawScripts, setScripts: setRawScripts }) {
   const mono = "'DM Mono', monospace";
   const sans = "'DM Sans', sans-serif";
-  const [filter, setFilter] = useState("All");
+  const [activeSession, setActiveSession] = useState(null);
+  const [expandedId, setExpandedId] = useState(null);
 
-  const scripts = filter==="All" ? rawScripts : rawScripts.filter(s=>s.status===filter);
+  const sessions = [...new Set(rawScripts.map(s=>s.session))].sort();
   const pc = { AUTHORITY:T.auth, CONVERSION:T.conv, REACH:T.reach };
 
-  const updateStatus = (id, status) => setRawScripts(p=>p.map(s=>s.id===id?{...s,status}:s));
+  const markDone = (id) => {
+    setRawScripts(p=>p.map(s=>s.id===id ? { ...s, status: s.status==="DONE" ? "APPROVED" : "DONE" } : s));
+  };
 
-  const cols = ["DRAFT","REVIEW","APPROVED","DONE"];
-  const colColor = { DRAFT:T.dim, REVIEW:T.gold, APPROVED:T.conv, DONE:T.ghost };
+  // ── SESSION LIST VIEW ──
+  if (!activeSession) {
+    return (
+      <div style={{ flex:1, display:"flex", flexDirection:"column", overflow:"hidden" }}>
+        <div style={{ padding:"14px 24px", borderBottom:`1px solid ${T.line}`, background:T.surface, display:"flex", alignItems:"center", gap:12, flexShrink:0 }}>
+          <div style={{ flex:1 }}>
+            <div style={{ fontSize:9, letterSpacing:"0.14em", color:T.dim, fontFamily:mono, marginBottom:2 }}>PRODUCTION PIPELINE</div>
+            <div style={{ fontSize:15, fontWeight:700, color:T.ink, fontFamily:sans }}>{sessions.length} sessions</div>
+          </div>
+        </div>
+        <div style={{ flex:1, overflowY:"auto", padding:"20px 24px" }}>
+          {sessions.map(session => {
+            const sessScripts = rawScripts.filter(s=>s.session===session);
+            const done = sessScripts.filter(s=>s.status==="DONE").length;
+            const total = sessScripts.length;
+            const pct = total>0 ? Math.round((done/total)*100) : 0;
+            return (
+              <div key={session} style={{ background:T.surface, border:`1px solid ${T.line}`, borderRadius:12, padding:"20px 24px", marginBottom:12 }}>
+                <div style={{ display:"flex", alignItems:"center", gap:12, marginBottom:14 }}>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={T.gold} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
+                  </svg>
+                  <span style={{ fontSize:14, fontWeight:700, color:T.ink, fontFamily:sans, flex:1 }}>{session}</span>
+                  <span style={{ fontSize:11, color:T.dim, fontFamily:mono }}>{done}/{total} done</span>
+                  <button onClick={()=>setActiveSession(session)}
+                    style={{ fontSize:11, fontWeight:700, color:T.gold, background:T.goldBg, border:`1px solid ${T.goldLine}`, borderRadius:5, padding:"6px 14px", cursor:"pointer", fontFamily:mono }}>
+                    Enter Session →
+                  </button>
+                </div>
+                {/* Progress bar */}
+                <div style={{ height:5, background:T.lift, borderRadius:99, overflow:"hidden", marginBottom:10 }}>
+                  <div style={{ height:"100%", width:`${pct}%`, background:pct===100?T.conv:T.gold, borderRadius:99, transition:"width 0.3s" }}/>
+                </div>
+                <div style={{ display:"flex", gap:8 }}>
+                  {["DRAFT","REVIEW","APPROVED","DONE"].map(st => {
+                    const count = sessScripts.filter(s=>s.status===st).length;
+                    if(!count) return null;
+                    const c = st==="DONE"?T.conv:st==="APPROVED"?T.auth:st==="REVIEW"?T.gold:T.ghost;
+                    return <span key={st} style={{ fontSize:9, color:c, background:c+"18", border:`1px solid ${c}33`, borderRadius:2, padding:"2px 7px", fontFamily:mono }}>{count} {st}</span>;
+                  })}
+                </div>
+              </div>
+            );
+          })}
+          {sessions.length===0 && (
+            <div style={{ textAlign:"center", padding:"60px 20px", color:T.ghost, fontFamily:sans, fontSize:13 }}>
+              No sessions yet. Create scripts in the Content tab first.
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  // ── SESSION INTERIOR VIEW ──
+  const sessScripts = rawScripts.filter(s=>s.session===activeSession);
+  const done = sessScripts.filter(s=>s.status==="DONE").length;
+  const total = sessScripts.length;
+  const pct = total>0 ? Math.round((done/total)*100) : 0;
 
   return (
     <div style={{ flex:1, display:"flex", flexDirection:"column", overflow:"hidden" }}>
-      <div style={{ padding:"14px 24px", borderBottom:`1px solid ${T.line}`, background:T.surface, display:"flex", alignItems:"center", gap:12, flexShrink:0 }}>
-        <div style={{ flex:1 }}>
-          <div style={{ fontSize:9, letterSpacing:"0.14em", color:T.dim, fontFamily:mono, marginBottom:2 }}>PRODUCTION PIPELINE</div>
-          <div style={{ fontSize:15, fontWeight:700, color:T.ink, fontFamily:sans }}>{rawScripts.length} scripts</div>
+      {/* Header */}
+      <div style={{ padding:"12px 24px", borderBottom:`1px solid ${T.line}`, background:T.surface, flexShrink:0 }}>
+        <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:10 }}>
+          <button onClick={()=>setActiveSession(null)}
+            style={{ background:"none", border:"none", color:T.dim, cursor:"pointer", display:"flex", alignItems:"center", gap:5, fontSize:12, fontFamily:sans }}>
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 12H5"/><path d="M12 19l-7-7 7-7"/></svg>
+            Sessions
+          </button>
+          <div style={{ width:1, height:18, background:T.line }} />
+          <span style={{ fontSize:14, fontWeight:700, color:T.ink, fontFamily:sans, flex:1 }}>{activeSession}</span>
+          <span style={{ fontSize:11, color:T.dim, fontFamily:mono }}>{done} of {total} done · {pct}%</span>
+        </div>
+        <div style={{ height:5, background:T.lift, borderRadius:99, overflow:"hidden" }}>
+          <div style={{ height:"100%", width:`${pct}%`, background:pct===100?T.conv:T.gold, borderRadius:99, transition:"width 0.3s" }}/>
         </div>
       </div>
-      <div style={{ flex:1, display:"flex", overflow:"hidden" }}>
-        {cols.map(col => {
-          const colScripts = rawScripts.filter(s=>s.status===col);
-          const color = colColor[col];
+
+      {/* Script checklist */}
+      <div style={{ flex:1, overflowY:"auto", padding:"16px 24px" }}>
+        {sessScripts.map((s, idx) => {
+          const color = pc[s.pillar] || T.gold;
+          const isDone = s.status==="DONE";
+          const isExpanded = expandedId===s.id;
           return (
-            <div key={col} style={{ flex:1, display:"flex", flexDirection:"column", borderRight:`1px solid ${T.line}`, overflow:"hidden" }}>
-              <div style={{ padding:"12px 16px", borderBottom:`1px solid ${T.line}`, background:T.surface, flexShrink:0 }}>
-                <div style={{ fontSize:9, fontWeight:700, letterSpacing:"0.14em", color, fontFamily:mono }}>{col}</div>
-                <div style={{ fontSize:11, color:T.ghost, fontFamily:mono, marginTop:2 }}>{colScripts.length} scripts</div>
+            <div key={s.id} style={{ border:`1px solid ${isDone?T.conv+"44":T.line}`, borderRadius:10, marginBottom:8, overflow:"hidden", opacity:isDone?0.7:1, background:isDone?T.convBg+"33":T.surface }}>
+              {/* Collapsed row */}
+              <div style={{ display:"flex", alignItems:"center", gap:12, padding:"14px 16px", cursor:"pointer" }}
+                onClick={()=>setExpandedId(isExpanded?null:s.id)}>
+                {/* Checkbox */}
+                <div onClick={e=>{ e.stopPropagation(); markDone(s.id); }}
+                  style={{ width:20, height:20, borderRadius:5, border:`2px solid ${isDone?T.conv:T.line}`, background:isDone?T.conv:"transparent", display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer", flexShrink:0 }}>
+                  {isDone && <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>}
+                </div>
+                <div style={{ width:3, height:30, background:color, borderRadius:99, flexShrink:0 }}/>
+                <div style={{ flex:1, minWidth:0 }}>
+                  <div style={{ fontSize:13, fontWeight:600, color:isDone?T.ghost:T.ink, fontFamily:sans, textDecoration:isDone?"line-through":"none", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{s.title}</div>
+                  {!isExpanded && <div style={{ fontSize:11, color:T.dim, fontFamily:sans, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{s.hook||"No hook"}</div>}
+                </div>
+                <span style={{ fontSize:9, fontWeight:700, color, background:color+"18", border:`1px solid ${color}33`, borderRadius:2, padding:"2px 7px", fontFamily:mono, flexShrink:0 }}>{s.pillar}</span>
+                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke={T.dim} strokeWidth="2" style={{ transform:isExpanded?"rotate(90deg)":"rotate(0deg)", transition:"transform 0.15s", flexShrink:0 }}>
+                  <path d="M9 18l6-6-6-6"/>
+                </svg>
               </div>
-              <div style={{ flex:1, overflowY:"auto", padding:"12px" }}>
-                {colScripts.map(s => {
-                  const c = pc[s.pillar]||T.gold;
-                  return (
-                    <div key={s.id} style={{ background:T.surface, border:`1px solid ${T.line}`, borderRadius:8, padding:"12px", marginBottom:8 }}>
-                      <div style={{ fontSize:12, fontWeight:600, color:T.ink, fontFamily:sans, marginBottom:6, lineHeight:1.4 }}>{s.title}</div>
-                      <div style={{ fontSize:10, color:T.dim, fontFamily:sans, marginBottom:8, lineHeight:1.4 }}>{s.hook?.slice(0,70)||"No hook"}…</div>
-                      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center" }}>
-                        <span style={{ fontSize:9, fontWeight:700, color:c, background:c+"18", border:`1px solid ${c}33`, borderRadius:2, padding:"1px 6px", fontFamily:mono, letterSpacing:"0.08em" }}>{s.pillar}</span>
-                        <div style={{ display:"flex", gap:4 }}>
-                          {col !== "DRAFT" && (
-                            <button onClick={()=>updateStatus(s.id, cols[cols.indexOf(col)-1])}
-                              style={{ fontSize:9, color:T.dim, background:"none", border:`1px solid ${T.line}`, borderRadius:3, padding:"2px 7px", cursor:"pointer", fontFamily:mono }}>←</button>
-                          )}
-                          {col !== "DONE" && (
-                            <button onClick={()=>updateStatus(s.id, cols[cols.indexOf(col)+1])}
-                              style={{ fontSize:9, color:T.gold, background:T.goldBg, border:`1px solid ${T.goldLine}`, borderRadius:3, padding:"2px 7px", cursor:"pointer", fontFamily:mono }}>→</button>
-                          )}
-                        </div>
-                      </div>
+              {/* Expanded content */}
+              {isExpanded && (
+                <div style={{ borderTop:`1px solid ${T.line}`, padding:"16px 18px", background:T.raised }}>
+                  {s.hook && (
+                    <div style={{ marginBottom:12 }}>
+                      <div style={{ fontSize:9, letterSpacing:"0.14em", color:T.gold, fontFamily:mono, marginBottom:5 }}>HOOK</div>
+                      <div style={{ fontSize:12, color:T.ink, fontFamily:sans, lineHeight:1.6, background:T.lift, padding:"10px 12px", borderRadius:6 }}>{s.hook}</div>
                     </div>
-                  );
-                })}
-              </div>
+                  )}
+                  {s.body && (
+                    <div style={{ marginBottom:12 }}>
+                      <div style={{ fontSize:9, letterSpacing:"0.14em", color:T.reach, fontFamily:mono, marginBottom:5 }}>BODY</div>
+                      <div style={{ fontSize:12, color:T.ink, fontFamily:sans, lineHeight:1.6, background:T.lift, padding:"10px 12px", borderRadius:6 }}>{s.body}</div>
+                    </div>
+                  )}
+                  {s.cta && (
+                    <div>
+                      <div style={{ fontSize:9, letterSpacing:"0.14em", color:T.conv, fontFamily:mono, marginBottom:5 }}>CALL TO ACTION</div>
+                      <div style={{ fontSize:12, color:T.ink, fontFamily:sans, lineHeight:1.6, background:T.lift, padding:"10px 12px", borderRadius:6 }}>{s.cta}</div>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           );
         })}
@@ -4237,7 +5027,196 @@ function ProductionTab({ scripts: rawScripts, setScripts: setRawScripts }) {
   );
 }
 
-function ClientViewTab({ client, scripts = [] }) {
+function ClientViewTab({ client, scripts = [], ideas = [], setIdeas }) {
+  const mono = "'DM Mono', monospace";
+  const sans = "'DM Sans', sans-serif";
+  const [sub, setSub] = useState("content");
+  const [scriptFilter, setScriptFilter] = useState("All");
+  const [expandedScript, setExpandedScript] = useState(null);
+  const [feedback, setFeedback] = useState({});
+
+  const pillColor = { AUTHORITY:"#ECC3FF", CONVERSION:"#34d399", REACH:"#38bdf8" };
+  const pillBg    = { AUTHORITY:"#200a3a44", CONVERSION:"#05462033", REACH:"#08203844" };
+  const subTabs = [
+    { id:"content", label:"Content" },
+    { id:"ideas",   label:"Ideas" },
+    { id:"foundation", label:"Foundation" },
+    { id:"pillars", label:"Pillars" },
+    { id:"avatar",  label:"Avatar" },
+    { id:"bio",     label:"Bio" },
+  ];
+
+  return (
+    <div style={{ flex:1, display:"flex", flexDirection:"column", overflow:"hidden" }}>
+      {/* Sub-nav */}
+      <div style={{ display:"flex", borderBottom:`1px solid ${T.line}`, background:T.surface, flexShrink:0, alignItems:"center" }}>
+        {subTabs.map(s => (
+          <button key={s.id} onClick={()=>setSub(s.id)}
+            style={{ padding:"0 20px", height:46, fontSize:12, fontWeight:sub===s.id?700:500, color:sub===s.id?T.gold:T.dim, background:"transparent", border:"none", borderBottom:`2px solid ${sub===s.id?T.gold:"transparent"}`, cursor:"pointer", fontFamily:sans, letterSpacing:"0.03em" }}>
+            {s.label}
+          </button>
+        ))}
+        <div style={{ flex:1 }}/>
+        <div style={{ fontSize:10, color:T.dim, fontFamily:mono, letterSpacing:"0.1em", paddingRight:20 }}>CLIENT PORTAL</div>
+      </div>
+
+      <div style={{ flex:1, overflowY:"auto", background:"#0c0c14" }}>
+
+      {/* ═══ CONTENT ═══ */}
+      {sub==="content" && (
+        <div style={{ padding:"24px" }}>
+          <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:20 }}>
+            <div style={{ fontSize:16, fontWeight:700, color:T.ink, fontFamily:sans, flex:1 }}>All Scripts</div>
+            {["All","AUTHORITY","CONVERSION","REACH"].map(f => (
+              <button key={f} onClick={()=>setScriptFilter(f)}
+                style={{ fontSize:10, fontWeight:scriptFilter===f?700:500, color:scriptFilter===f?T.gold:T.dim, background:scriptFilter===f?T.goldBg:"transparent", border:`1px solid ${scriptFilter===f?T.goldLine:"transparent"}`, borderRadius:4, padding:"4px 10px", cursor:"pointer", fontFamily:mono }}>
+                {f}
+              </button>
+            ))}
+          </div>
+          {scripts.filter(s=>scriptFilter==="All"||s.pillar===scriptFilter).map(s => {
+            const color = pillColor[s.pillar]||T.gold;
+            const bg = pillBg[s.pillar]||T.goldBg;
+            const isExp = expandedScript===s.id;
+            return (
+              <div key={s.id} style={{ background:T.surface, border:`1px solid ${T.line}`, borderRadius:10, marginBottom:8, overflow:"hidden" }}>
+                <div style={{ display:"flex", alignItems:"center", gap:12, padding:"14px 16px", cursor:"pointer" }}
+                  onClick={()=>setExpandedScript(isExp?null:s.id)}>
+                  <div style={{ width:3, height:32, background:color, borderRadius:99, flexShrink:0 }}/>
+                  <div style={{ flex:1, minWidth:0 }}>
+                    <div style={{ fontSize:13, fontWeight:600, color:T.ink, fontFamily:sans, marginBottom:3 }}>{s.title}</div>
+                    {!isExp && <div style={{ fontSize:11, color:T.dim, fontFamily:sans, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{s.hook||"No hook yet"}</div>}
+                  </div>
+                  <span style={{ fontSize:9, fontWeight:700, color, background:bg, border:`1px solid ${color}33`, borderRadius:2, padding:"2px 7px", fontFamily:mono, flexShrink:0 }}>{s.pillar}</span>
+                  <span style={{ fontSize:9, color:s.status==="APPROVED"?T.conv:s.status==="REVIEW"?T.gold:T.ghost, fontFamily:mono, flexShrink:0 }}>{s.status}</span>
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke={T.dim} strokeWidth="2" style={{ transform:isExp?"rotate(90deg)":"rotate(0deg)", transition:"0.15s", flexShrink:0 }}>
+                    <path d="M9 18l6-6-6-6"/>
+                  </svg>
+                </div>
+                {isExp && (
+                  <div style={{ borderTop:`1px solid ${T.line}`, padding:"16px 18px", background:T.raised }}>
+                    {s.hook && <div style={{ marginBottom:10 }}><div style={{ fontSize:9, letterSpacing:"0.14em", color:T.gold, fontFamily:mono, marginBottom:4 }}>HOOK</div><div style={{ fontSize:12, color:T.ink, fontFamily:sans, lineHeight:1.6 }}>{s.hook}</div></div>}
+                    {s.body && <div style={{ marginBottom:10 }}><div style={{ fontSize:9, letterSpacing:"0.14em", color:T.reach, fontFamily:mono, marginBottom:4 }}>BODY</div><div style={{ fontSize:12, color:T.ink, fontFamily:sans, lineHeight:1.6 }}>{s.body}</div></div>}
+                    {s.cta && <div><div style={{ fontSize:9, letterSpacing:"0.14em", color:T.conv, fontFamily:mono, marginBottom:4 }}>CTA</div><div style={{ fontSize:12, color:T.ink, fontFamily:sans, lineHeight:1.6 }}>{s.cta}</div></div>}
+                    <div style={{ marginTop:12, borderTop:`1px solid ${T.line}`, paddingTop:12 }}>
+                      <div style={{ fontSize:9, color:T.dim, fontFamily:mono, marginBottom:5 }}>FEEDBACK</div>
+                      <textarea value={feedback[s.id]||""} onChange={e=>setFeedback(p=>({...p,[s.id]:e.target.value}))} rows={2}
+                        placeholder="Leave a comment or feedback…"
+                        style={{ width:"100%", background:T.lift, border:`1px solid ${T.line}`, borderRadius:5, padding:"8px 10px", color:T.ink, fontSize:12, fontFamily:sans, resize:"vertical", outline:"none", boxSizing:"border-box" }}/>
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+          {scripts.length===0 && <div style={{ textAlign:"center", padding:"48px", color:T.ghost, fontFamily:sans, fontSize:13 }}>No scripts shared yet.</div>}
+        </div>
+      )}
+
+      {/* ═══ IDEAS ═══ */}
+      {sub==="ideas" && (
+        <div style={{ padding:"24px" }}>
+          <IdeasTab ideas={ideas} setIdeas={setIdeas||(() => {})} />
+        </div>
+      )}
+
+      {/* ═══ FOUNDATION ═══ */}
+      {sub==="foundation" && (
+        <div style={{ maxWidth:680, margin:"0 auto", padding:"32px 24px" }}>
+          <div style={{ fontSize:16, fontWeight:700, color:T.ink, fontFamily:sans, marginBottom:20 }}>Strategy Foundation</div>
+          {[
+            ["Positioning", STRAT_DATA.positioning],
+            ["Target Audience", STRAT_DATA.audience],
+            ["Offering", STRAT_DATA.offering],
+            ["Conversion Goal", STRAT_DATA.conversionGoal],
+            ["Brand Tone", STRAT_DATA.brandTone],
+          ].map(([label, val]) => (
+            <div key={label} style={{ background:T.surface, border:`1px solid ${T.line}`, borderRadius:10, padding:"16px 20px", marginBottom:10 }}>
+              <div style={{ fontSize:9, letterSpacing:"0.14em", color:T.dim, fontFamily:mono, marginBottom:6 }}>{label.toUpperCase()}</div>
+              <div style={{ fontSize:13, color:T.ink, fontFamily:sans, lineHeight:1.6 }}>{val}</div>
+            </div>
+          ))}
+          {[
+            ["Pain Points", STRAT_DATA.painPoints],
+            ["Goals", STRAT_DATA.goals],
+          ].map(([label, items]) => (
+            <div key={label} style={{ background:T.surface, border:`1px solid ${T.line}`, borderRadius:10, padding:"16px 20px", marginBottom:10 }}>
+              <div style={{ fontSize:9, letterSpacing:"0.14em", color:T.dim, fontFamily:mono, marginBottom:10 }}>{label.toUpperCase()}</div>
+              {items.map((item, i) => (
+                <div key={i} style={{ display:"flex", alignItems:"center", gap:8, padding:"5px 0" }}>
+                  <div style={{ width:5, height:5, borderRadius:"50%", background:T.gold, flexShrink:0 }}/>
+                  <span style={{ fontSize:12, color:T.muted, fontFamily:sans }}>{item}</span>
+                </div>
+              ))}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* ═══ PILLARS ═══ */}
+      {sub==="pillars" && (
+        <div style={{ padding:"24px" }}>
+          <div style={{ fontSize:16, fontWeight:700, color:T.ink, fontFamily:sans, marginBottom:20 }}>Content Pillars</div>
+          <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill, minmax(280px,1fr))", gap:14 }}>
+            {["AUTHORITY","CONVERSION","REACH"].map(p => {
+              const c = p==="AUTHORITY"?T.auth:p==="CONVERSION"?T.conv:T.reach;
+              const bg = p==="AUTHORITY"?T.authBg:p==="CONVERSION"?T.convBg:T.reachBg;
+              const count = scripts.filter(s=>s.pillar===p).length;
+              const pct = scripts.length>0 ? Math.round((count/scripts.length)*100) : 33;
+              return (
+                <div key={p} style={{ background:T.surface, border:`1px solid ${c}33`, borderRadius:12, padding:"20px" }}>
+                  <div style={{ fontSize:9, fontWeight:700, letterSpacing:"0.14em", color:c, fontFamily:mono, marginBottom:8 }}>{p}</div>
+                  <div style={{ height:4, background:T.lift, borderRadius:99, overflow:"hidden", marginBottom:12 }}>
+                    <div style={{ height:"100%", width:`${pct}%`, background:c, borderRadius:99 }}/>
+                  </div>
+                  <div style={{ fontSize:24, fontWeight:800, color:T.ink, fontFamily:sans }}>{count}</div>
+                  <div style={{ fontSize:11, color:T.dim, fontFamily:sans, marginTop:2 }}>scripts · {pct}% of mix</div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* ═══ AVATAR ═══ */}
+      {sub==="avatar" && (
+        <div style={{ maxWidth:680, margin:"0 auto", padding:"32px 24px" }}>
+          <div style={{ fontSize:16, fontWeight:700, color:T.ink, fontFamily:sans, marginBottom:20 }}>Target Avatar</div>
+          {INIT_AVATARS.map(av => (
+            <div key={av.id} style={{ background:T.surface, border:`1px solid ${T.line}`, borderRadius:12, padding:"20px", marginBottom:14 }}>
+              <div style={{ display:"flex", alignItems:"center", gap:12, marginBottom:16 }}>
+                <div style={{ width:40, height:40, borderRadius:10, background:(av.color||T.gold)+"22", border:`1px solid ${av.color||T.gold}44`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:16 }}>{av.emoji||"👤"}</div>
+                <div>
+                  <div style={{ fontSize:14, fontWeight:700, color:T.ink, fontFamily:sans }}>{av.name}</div>
+                  <div style={{ fontSize:11, color:T.dim, fontFamily:sans }}>{av.niche}</div>
+                </div>
+              </div>
+              <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10 }}>
+                {[["Age", av.age],["Location", av.location],["Income", av.income],["Platform", av.platform]].filter(([,v])=>v).map(([label,val]) => (
+                  <div key={label} style={{ background:T.lift, borderRadius:6, padding:"10px 12px" }}>
+                    <div style={{ fontSize:9, color:T.dim, fontFamily:mono, marginBottom:3 }}>{label.toUpperCase()}</div>
+                    <div style={{ fontSize:12, color:T.ink, fontFamily:sans }}>{val}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* ═══ BIO ═══ */}
+      {sub==="bio" && (
+        <div style={{ padding:"0" }}>
+          <BioOptimizer />
+        </div>
+      )}
+
+      </div>
+    </div>
+  );
+}
+
+function _OldClientViewTab_unused({ client, scripts = [] }) {
   const mono = "'DM Mono', monospace";
   const sans = "'DM Sans', sans-serif";
   const [sub, setSub] = useState("overview");
@@ -4557,6 +5536,9 @@ function Workspace({ client, initialTab, onTabChange, onBack }) {
   const [tab, setTab] = useState(initialTab || "strategy");
   const handleSetTab = (t) => { setTab(t); onTabChange?.(t); };
   const [scripts, setScripts] = useState(isTeam ? REVIVE_SCRIPTS : INIT_SCRIPTS);
+  const [ideas, setIdeas] = useState(IDEAS_DATA);
+  const [customTemplates, setCustomTemplates] = useState([]);
+  const [hooksLibrary, setHooksLibrary] = useState(HOOKS_DATA);
 
   const handleAddToContent = (items) => {
     const newScripts = items.map(item => ({
@@ -4582,10 +5564,10 @@ function Workspace({ client, initialTab, onTabChange, onBack }) {
       <div style={{ flex:1, display:"flex", overflow:"hidden" }}>
         {tab==="team"       && <TeamTab doctors={REVIVE_DOCTORS} />}
         {tab==="strategy"   && <BriefingTab onAddToContent={handleAddToContent} />}
-        {tab==="content"    && <ContentTab scripts={scripts} setScripts={setScripts} doctors={isTeam ? REVIVE_DOCTORS : null} />}
-        {tab==="resources"  && <ResourcesTab />}
+        {tab==="content"    && <ContentTab scripts={scripts} setScripts={setScripts} doctors={isTeam ? REVIVE_DOCTORS : null} ideas={ideas} setIdeas={setIdeas} />}
+        {tab==="resources"  && <ResourcesTab customTemplates={customTemplates} setCustomTemplates={setCustomTemplates} hooksLibrary={hooksLibrary} setHooksLibrary={setHooksLibrary} />}
         {tab==="production" && <ProductionTab scripts={scripts} setScripts={setScripts} />}
-        {tab==="clientview" && <ClientViewTab client={client} scripts={scripts} />}
+        {tab==="clientview" && <ClientViewTab client={client} scripts={scripts} ideas={ideas} setIdeas={setIdeas} />}
       </div>
     </div>
   );
